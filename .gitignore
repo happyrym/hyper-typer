@@ -1,0 +1,21 @@
+# Swift / SwiftPM
+.build/
+*.xcodeproj
+DerivedData/
+.swiftpm/
+
+# App bundle (빌드 산출물)
+*.app/
+
+# 로컬 secret / 런타임 (repo 밖이지만 혹시 몰라 제외)
+local.properties
+*.key
+.hyper-typer/
+last-turn.json
+hyper-typer.log
+
+# 툴링 메타데이터
+.omc/
+
+# macOS
+.DS_Store
