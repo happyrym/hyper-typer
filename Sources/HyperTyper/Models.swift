@@ -33,19 +33,21 @@ final class CandidateStore: ObservableObject {
         let exKey = info.userPrompt ?? ""
         lastAnswerPreview = infoText(info)
 
-        // 1) 이 pane의 캐시가 최신이면 즉시 표시(전환 무지연). 강제 새로고침이면 건너뜀.
+        let genKey = info.paneKey + "|" + exKey
+
+        // 1) 이 pane의 캐시가 최신이면 즉시 표시(전환 무지연) + 스피너 off.
         if !force, let c = cache[info.paneKey], c.key == exKey {
             candidates = c.cands
+            isRefreshing = false
             log("HIT  pane=\(info.project) prompt=\"\(String(exKey.prefix(30)))\"")
             return
         }
         // 2) 낡은 캐시라도 있으면 먼저 보여줘 빈 화면 방지.
         if let c = cache[info.paneKey] { candidates = c.cands }
 
-        // 3) 동일 pane+교환 생성이 진행 중이면 중복 방지. 다른 생성 중이면 큐잉.
-        let genKey = info.paneKey + "|" + exKey
-        if generatingKey == genKey { return }
-        if generatingKey != nil { pending = true; return }
+        // 3) 스피너는 '지금 포커스된 이 pane'이 생성 중일 때만 켠다.
+        if generatingKey == genKey { isRefreshing = true; return }        // 이 pane 생성 진행 중
+        if generatingKey != nil { pending = true; isRefreshing = false; return }  // 다른 pane 생성 중 → 이 pane은 스피너 off
 
         generatingKey = genKey
         isRefreshing = true
@@ -54,14 +56,14 @@ final class CandidateStore: ObservableObject {
 
         let fresh = await generator.generate(from: Exchange(userPrompt: info.userPrompt, assistantAnswer: info.assistantAnswer))
         cache[info.paneKey] = (exKey, fresh)
-        // 생성이 끝난 지금도 여전히 이 pane이 포커스면 화면 갱신(그새 다른 터미널로 갔으면 캐시만 채움).
+        generatingKey = nil
+        // 생성이 끝난 지금도 여전히 이 pane이 포커스면 화면 갱신 + 스피너 off. 다른 데로 갔으면 캐시만 채운다.
         if let now = orca.focusedPaneInfo(), now.paneKey == info.paneKey {
             candidates = fresh
+            isRefreshing = false
         }
         let dt = String(format: "%.1f", Date().timeIntervalSince(started))
         log("RESULT \(fresh.count) cands in \(dt)s first=\"\(String(fresh.first?.text.prefix(30) ?? ""))\"")
-        isRefreshing = false
-        generatingKey = nil
         if pending { pending = false; await refresh(force: false) }
     }
 
