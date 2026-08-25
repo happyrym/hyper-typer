@@ -1,44 +1,69 @@
 # hyper-typer
 
-An AI agent assistant that predicts your next prompt. Built for Orca / terminal-based Claude Code.
+**당신의 다음 프롬프트를 예측하는 AI 보조 입력 도구.** Orca 터미널 위에 떠서, 직전 대화를 읽어
+"다음에 보낼 만한 프롬프트 후보 5개"를 제안하고 복사 버튼으로 클립보드에 넣어 붙여넣게 하는 네이티브 macOS 플로팅 패널.
 
-Orca 터미널 위에 떠서, 직전 대화를 읽어 **"다음에 보낼 프롬프트 후보 5개"**를 제안하고
-복사 버튼으로 클립보드에 넣어 붙여넣게 하는 네이티브 macOS 플로팅 패널.
-**API 키·결제 없이** 로컬 `claude` CLI로 생성한다. 자동 주입이 없어 Secure Input·HID·AX 문제를 회피한다.
+*An AI assistant that predicts your next prompt. A floating macOS panel over Orca terminals.*
 
-## 동작 방식
+---
 
-1. **트리거** — 내가 프롬프트를 **엔터로 제출**하면(Shift+Enter는 제출이 아니라 제외됨) 감지.
-2. **세션 스코핑** — `~/.claude/projects`의 transcript 중 *가장 최근 새 user 발화*가 있는 세션(= 방금 제출한 터미널)을 고른다. 백그라운드 에이전트는 못 가로챈다.
-3. **생성** — `claude -p --model haiku`(print 모드)로 직전 교환을 근거로 후보 5개 생성. 키 불필요.
-4. **표시·복사** — 포커스된 Orca 창 위 플로팅 패널에 5줄 + 복사 버튼. 붙여넣기는 수동.
+## 컨셉
 
-## 빌드 / 실행
+- **무엇** — 프롬프트를 칠 때마다 "다음에 보낼 만한 말" 5개를 옆에 띄워 주는 보조 입력기. 고르면 복사되고, 붙여넣기만 하면 된다.
+- **왜** — LLM 코딩에서 "빈 입력창을 마주하고 뭘 칠지 고민하는 시간"이 숨은 병목. 그 다음 한 수를 미리 깔아 준다.
+- **어떻게** — **API 키·결제 없이** 로컬 `claude` CLI로 생성. 자동 키 주입이 없어 Secure Input·접근성 권한 문제를 통째로 회피한다.
+- **터미널별** — 여러 Orca 터미널을 오갈 때, **지금 포커스된 터미널**의 세션을 읽어 그 맥락의 후보를 보여준다. 터미널마다 후보를 따로 캐시해 전환은 즉각적이다.
+
+## 요구사항
+
+- **macOS 13+**
+- **Xcode Command Line Tools** (`xcode-select --install`) — `swift` 빌드용
+- **[Orca](https://orca.computer) 터미널** — 이 앱은 Orca의 로컬 상태로 포커스된 터미널·세션을 읽는다 (Orca 전용)
+- **`claude` CLI 로그인 완료** — 후보 생성에 사용. `claude` 명령이 되면 OK (별도 API 키 불필요)
+
+## 설치 & 실행
 
 ```bash
-swift build              # 개발 빌드
-./build-app.sh           # HyperTyper.app 번들 생성 (더블클릭 실행용)
-open HyperTyper.app      # 실행 — 메뉴바 ✨ 아이콘에서 종료
+git clone https://github.com/happyrym/hyper-typer.git
+cd hyper-typer
+./build-app.sh          # 릴리즈 빌드 → HyperTyper.app 번들 생성
+open HyperTyper.app     # 실행
 ```
 
-에이전트 앱(`LSUIElement`)이라 Dock 아이콘이 없고 포커스를 뺏지 않는다.
-`.app`을 `/Applications`로 옮기고 로그인 항목에 추가하면 부팅 시 자동 실행.
+- 실행하면 **메뉴바에 ✨ 아이콘**이 뜬다. 종료·새로고침은 여기서.
+- Dock 아이콘 없는 에이전트 앱(`LSUIElement`)이라 포커스를 뺏지 않는다.
+- 상시 사용: `HyperTyper.app`을 `/Applications`로 옮기고 **시스템 설정 › 로그인 항목**에 추가하면 부팅 시 자동 실행.
+- 개발 중에는 `swift build` 후 `./.build/debug/HyperTyper` 로 바로 실행 가능.
 
-## 구성
+## 사용법
 
-- `Sources/HyperTyper/` — SwiftUI 앱
-  - `FloatingPanel` — non-activating 오버레이 패널 (포커스 창 추종, 드래그 위치 유지)
-  - `OrcaWindowTracker` — CGWindowList로 포커스된 Orca 창 프레임 취득 (권한 0)
-  - `TranscriptReader` — transcript에서 마지막 교환 추출 (end_turn 필터, 세션 스코핑)
-  - `TranscriptWatcher` — FSEvents로 변경 감지 (디바운스)
-  - `CandidateGenerator` — `claude` CLI 호출로 후보 5개 생성
-  - `CandidateStore` / `PanelView` / `StatusBarController`
-- `on-stop.sh` — (선택) Claude Code Stop hook. 세션 정밀 매칭용.
-- `docs/` — 컨셉·설계·MVP 1pager, 프로젝트 노트
+1. Orca 터미널에서 Claude Code로 작업한다.
+2. 포커스된 터미널 위에 패널이 떠서 **후보 5개**를 보여준다 (헤더 `📟 프로젝트 · 상태 · 직전 프롬프트`).
+3. 마음에 드는 후보의 **복사 버튼**을 누르고 입력창에 붙여넣기(⌘V).
+4. 프롬프트를 **엔터로 제출**할 때마다 후보가 갱신된다 (Shift+Enter 줄바꿈은 무시).
+5. 다른 터미널로 옮기면 그 터미널의 후보로 바뀐다. 이미 본 터미널로 돌아오면 **즉시**(캐시) 표시.
+6. 패널은 드래그로 원하는 위치에 두면 유지된다.
+
+## 동작 원리
+
+| 구성 | 역할 |
+|---|---|
+| `OrcaWindowTracker` | `CGWindowList`로 **포커스된 Orca 창** 위치 취득 → 패널 앵커링 (권한 0) |
+| `OrcaState` | `orca-data.json`(activeTabId+activeLeafId) + `agent-hooks/last-status.json` → **포커스된 pane의 세션**(cwd·상태·직전 프롬프트·답변) |
+| `CandidateGenerator` | `claude -p --model haiku` (print 모드)로 후보 5개 생성. 격리된 scratch cwd에서 실행해 자기 트리거 방지 |
+| `CandidateStore` | **pane별 후보 캐시** — 전환 무지연, 프롬프트 바뀔 때만 재생성. 복사 처리 |
+| `TranscriptWatcher` | FSEvents로 Orca 상태 변경 감지 (포커스 전환·턴 이벤트) |
+| `FloatingPanel` / `PanelView` / `StatusBarController` | non-activating 오버레이 패널 · SwiftUI · 메뉴바 |
+
+> Orca 내부 상태 파일 포맷에 의존한다 — Orca 버전이 바뀌면 `OrcaState`(어댑터)만 고치면 된다.
+
+## 제약 / 로드맵
+
+- **Orca 전용** (포커스·세션 매핑이 Orca 상태 파일 기반).
+- **첫 생성 지연 ~9~64초** — `claude -p` 콜드 스타트. 이미 본 터미널은 캐시로 즉시. 지연 제거는 로드맵의 "워밍 세션"으로.
+- 로드맵·설계·컨셉 탐색은 `docs/` 참고 (`hyper-typer-ideas-deck-1.html`, `hyper-typer-design-1.html`, `hyper-typer-concepts-1.html`).
 
 ## Secret
 
-이 앱은 **API 키 등 secret이 필요 없다** — 로그인된 `claude` CLI 인증을 그대로 사용한다.
-따라서 코드에 하드코딩된 secret이 없다. 향후 직접 API 모드를 추가할 경우
-키는 `~/.hyper-typer/anthropic-key`(repo 밖) 또는 환경변수로만 두고, 절대 커밋하지 않는다.
-`.gitignore`가 로컬 설정·빌드 산출물을 제외한다.
+이 앱은 **API 키 등 secret이 필요 없다** — 로그인된 `claude` CLI 인증을 그대로 쓴다.
+코드에 하드코딩된 secret이 없고, `.gitignore`가 로컬 설정·빌드 산출물을 제외한다.
