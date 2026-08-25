@@ -8,6 +8,11 @@ let package = Package(
         .executableTarget(
             name: "HyperTyper",
             path: "Sources/HyperTyper"
-        )
+        ),
+        .testTarget(
+            name: "HyperTyperTests",
+            dependencies: ["HyperTyper"],
+            path: "Tests/HyperTyperTests"
+        ),
     ]
 )
