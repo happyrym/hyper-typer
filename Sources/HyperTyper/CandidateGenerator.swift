@@ -15,10 +15,10 @@ final class CandidateGenerator {
     """
 
     func generate(from exchange: Exchange) async -> [Candidate] {
-        guard let answer = exchange.assistantAnswer,
-              !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return fallback()
-        }
+        let prompt = (exchange.userPrompt ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let answer = (exchange.assistantAnswer ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        // 답변이 없어도(진행 중) 프롬프트만으로 예측. 둘 다 없을 때만 fallback.
+        guard !prompt.isEmpty || !answer.isEmpty else { return fallback() }
         guard let raw = await runClaudeCLI(userPrompt: exchange.userPrompt, answer: String(answer.prefix(4000))) else {
             return fallback(note: "claude CLI 실행 실패/타임아웃")
         }
@@ -31,7 +31,8 @@ final class CandidateGenerator {
     private func runClaudeCLI(userPrompt: String?, answer: String) async -> String? {
         let sys = systemPrompt
         let up = userPrompt.map { String($0.prefix(1500)) } ?? "(없음)"
-        let context = "[직전 내 프롬프트]\n\(up)\n\n[어시스턴트 답변]\n\(answer)"
+        let ans = answer.isEmpty ? "(아직 없음 — 방금 이 프롬프트를 보냈고 진행 중)" : answer
+        let context = "[직전 내 프롬프트]\n\(up)\n\n[어시스턴트 답변]\n\(ans)"
         return await withCheckedContinuation { cont in
             DispatchQueue.global(qos: .userInitiated).async {
                 // 격리된 scratch cwd — 생성용 claude -p의 transcript가 여기 쌓이며,

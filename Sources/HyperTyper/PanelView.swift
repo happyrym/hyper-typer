@@ -7,7 +7,7 @@ struct PanelView: View {
         VStack(alignment: .leading, spacing: 10) {
             header
             if !store.lastAnswerPreview.isEmpty {
-                Text("직전 입력 기준 ↓  \(store.lastAnswerPreview)…")
+                Text("📟 \(store.lastAnswerPreview)")
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

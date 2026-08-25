@@ -6,57 +6,69 @@ struct Candidate: Identifiable, Hashable {
     let text: String
 }
 
-/// 패널 상태: 직전 답변 프리뷰 + 후보 5개 + 로딩 여부. 복사 처리도 담당.
+/// 패널 상태: 포커스된 터미널의 정보 + 그 pane의 후보. pane별 후보 캐시로 전환은 무지연.
 @MainActor
 final class CandidateStore: ObservableObject {
     @Published var candidates: [Candidate] = []
-    @Published var lastAnswerPreview: String = ""
-    @Published var isRefreshing = false        // 헤더 인디케이터용. 목록은 가리지 않는다.
+    @Published var lastAnswerPreview: String = ""   // 헤더 info 라인(프로젝트·상태·직전 프롬프트)
+    @Published var isRefreshing = false
 
-    private let reader = TranscriptReader()
+    private let orca = OrcaState()
     private let generator = CandidateGenerator()
-    private var lastSeenUserPrompt: String?
-    private var isGenerating = false           // 동시 생성 방지
-    private var pending = false                // 생성 중 새 변경이 오면 끝나고 한 번 더
 
-    /// 수동 새로고침(버튼): 무조건 재생성.
-    func refreshFromTranscript() { Task { await run(force: true) } }
+    // 포커스된 pane별 후보 캐시: paneKey → (교환 식별키, 후보들)
+    private var cache: [String: (key: String, cands: [Candidate])] = [:]
+    private var generatingKey: String?     // 현재 생성 중 "paneKey|exKey"
+    private var pending = false
 
-    /// 파일 변경 감지 시: 직전 답변이 실제로 바뀌었을 때만 재생성.
-    func refreshIfChanged() { Task { await run(force: false) } }
+    /// 수동 새로고침(버튼).
+    func refreshFromTranscript() { Task { await refresh(force: true) } }
 
-    /// 후보의 근거가 될 마지막 교환(사용자 프롬프트+답변)을 정한다.
-    /// 1순위: Stop hook이 기록한 last-turn.json의 transcript_path(= 방금 답한 그 세션).
-    /// 폴백: 가장 최근 활동 세션.
-    private func resolveExchange() -> Exchange {
-        // 터미널별 스코핑: 가장 최근 '새 user 발화'가 있는 세션(= 내가 방금 제출한 터미널).
-        // 백그라운드 에이전트(assistant만 append)는 이 선택을 못 바꿔 크로스 트리거가 막힌다.
-        reader.mostRecentUserExchange()
-    }
+    /// 감시 트리거(포커스 전환·턴 이벤트).
+    func refreshIfChanged() { Task { await refresh(force: false) } }
 
-    private func run(force: Bool) async {
-        let exchange = resolveExchange()
-        // 트리거 기준 = 내가 방금 '엔터로 제출한' 프롬프트(= 새 user 메시지). Shift+Enter는 제출이 아니라
-        // transcript에 안 남으므로 자연히 걸러진다. 답변을 기다리지 않고 제출 즉시 다음 수를 예측.
-        let submitted = exchange.userPrompt
-        if !force, submitted == lastSeenUserPrompt { return }
-        if isGenerating { pending = true; return }   // 진행 중이면 큐잉만
+    private func refresh(force: Bool) async {
+        guard let info = orca.focusedPaneInfo() else { return }
+        // 캐시 키 = 마지막 '제출한 프롬프트'만. 답변 스트리밍/완료로는 안 바뀌게 해서 왕복 시 캐시가 적중한다.
+        let exKey = info.userPrompt ?? ""
+        lastAnswerPreview = infoText(info)
 
-        isGenerating = true
+        // 1) 이 pane의 캐시가 최신이면 즉시 표시(전환 무지연). 강제 새로고침이면 건너뜀.
+        if !force, let c = cache[info.paneKey], c.key == exKey {
+            candidates = c.cands
+            log("HIT  pane=\(info.project) prompt=\"\(String(exKey.prefix(30)))\"")
+            return
+        }
+        // 2) 낡은 캐시라도 있으면 먼저 보여줘 빈 화면 방지.
+        if let c = cache[info.paneKey] { candidates = c.cands }
+
+        // 3) 동일 pane+교환 생성이 진행 중이면 중복 방지. 다른 생성 중이면 큐잉.
+        let genKey = info.paneKey + "|" + exKey
+        if generatingKey == genKey { return }
+        if generatingKey != nil { pending = true; return }
+
+        generatingKey = genKey
         isRefreshing = true
-        lastSeenUserPrompt = submitted
-        lastAnswerPreview = String((submitted ?? "").prefix(120))
         let started = Date()
-        log("TRIGGER force=\(force) submitted=\"\(String((submitted ?? "").prefix(40)))\"")
+        log("GEN pane=\(info.project) state=\(info.state) prompt=\"\(String((info.userPrompt ?? "").prefix(40)))\"")
 
-        let fresh = await generator.generate(from: exchange)
-        candidates = fresh          // 다 만든 뒤 한 번에 교체 → 목록이 비지 않음(깜빡임 제거)
+        let fresh = await generator.generate(from: Exchange(userPrompt: info.userPrompt, assistantAnswer: info.assistantAnswer))
+        cache[info.paneKey] = (exKey, fresh)
+        // 생성이 끝난 지금도 여전히 이 pane이 포커스면 화면 갱신(그새 다른 터미널로 갔으면 캐시만 채움).
+        if let now = orca.focusedPaneInfo(), now.paneKey == info.paneKey {
+            candidates = fresh
+        }
         let dt = String(format: "%.1f", Date().timeIntervalSince(started))
         log("RESULT \(fresh.count) cands in \(dt)s first=\"\(String(fresh.first?.text.prefix(30) ?? ""))\"")
         isRefreshing = false
-        isGenerating = false
+        generatingKey = nil
+        if pending { pending = false; await refresh(force: false) }
+    }
 
-        if pending { pending = false; await run(force: false) }
+    private func infoText(_ info: PaneInfo) -> String {
+        let prompt = info.userPrompt.map { String($0.prefix(40)) } ?? ""
+        let st = info.state.isEmpty ? "" : " · \(info.state)"
+        return "\(info.project)\(st)  ·  \(prompt)"
     }
 
     /// 안정성 검증용 디버그 로그(~/.hyper-typer/hyper-typer.log).

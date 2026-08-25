@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: FloatingPanel!
     private var tracker: OrcaWindowTracker!
     private var watcher: TranscriptWatcher!
+    private var watcher2: TranscriptWatcher!
     private var statusBar: StatusBarController!
     private let store = CandidateStore()
 
@@ -23,18 +24,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         tracker.start()
 
-        // transcript(~/.claude/projects) 변경을 감시 → 트리거. end_turn 필터 덕에 턴이 실제로
-        // 끝났을 때만 답변이 바뀌어 재생성된다(중간 툴 호출 텍스트는 무시). 세션 정밀도는
-        // resolveExchange가 last-turn.json(등록 시)을 우선 참조해 얹는다. hook 미등록이어도 동작.
+        // 로그 디렉터리.
         let htDir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".hyper-typer", isDirectory: true)
         try? FileManager.default.createDirectory(at: htDir, withIntermediateDirectories: true)
-        let projects = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude/projects", isDirectory: true).path
-        watcher = TranscriptWatcher(path: projects) { [weak self] in
+
+        // Orca 상태 감시: 포커스 전환(profiles/orca-data.json) + 턴 이벤트(agent-hooks/last-status.json).
+        // 어느 쪽이 바뀌든 refreshIfChanged → 포커스 pane 해석 → pane별 캐시(전환 무지연) 또는 생성.
+        let orca = OrcaState()
+        watcher = TranscriptWatcher(path: orca.profilesDir) { [weak self] in
             MainActor.assumeIsolated { self?.store.refreshIfChanged() }
         }
         watcher.start()
+        watcher2 = TranscriptWatcher(path: orca.agentHooksDir) { [weak self] in
+            MainActor.assumeIsolated { self?.store.refreshIfChanged() }
+        }
+        watcher2.start()
 
         // 첫 로드: 직전 assistant 턴으로 후보 생성.
         store.refreshFromTranscript()
