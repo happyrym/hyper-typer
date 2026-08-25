@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>하이퍼 타이퍼 — 컨셉 10선</title>
+<style>
+  :root{
+    --bg:#0d0f14; --panel:#151922; --panel2:#1b2130; --line:#262d3d;
+    --ink:#e8ecf3; --sub:#9aa6bd; --dim:#6c778f;
+    --accent:#7c9cff; --accent2:#5ce0c6; --gold:#ffcf6b;
+    --easy:#5ce0c6; --mid:#ffcf6b; --hard:#ff8a8a;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:radial-gradient(1200px 700px at 80% -10%,#1a2030 0,var(--bg) 55%);
+    color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo",Segoe UI,Roboto,sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:56px 24px 120px}
+  header.hero{margin-bottom:36px}
+  .kicker{font-size:13px; letter-spacing:.18em; color:var(--accent2); text-transform:uppercase; font-weight:700}
+  h1{font-size:40px; margin:10px 0 8px; letter-spacing:-.02em; line-height:1.15}
+  h1 .grad{background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .lead{color:var(--sub); font-size:16px; max-width:760px}
+  .meta{display:flex; gap:18px; flex-wrap:wrap; margin-top:18px; color:var(--dim); font-size:13px}
+  .meta b{color:var(--sub)}
+
+  .toolbar{position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px;
+    background:rgba(13,15,20,.82); backdrop-filter:blur(8px); border:1px solid var(--line);
+    border-radius:14px; padding:12px 16px; margin:26px 0 30px; font-size:14px; color:var(--sub)}
+  .toolbar .count{color:var(--ink); font-weight:700}
+  .toolbar .pill{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap}
+  .legend{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--dim)}
+  .dot{width:9px; height:9px; border-radius:50%}
+
+  .grid{display:grid; grid-template-columns:1fr; gap:18px}
+  .card{position:relative; background:linear-gradient(180deg,var(--panel),#12161f);
+    border:1px solid var(--line); border-radius:18px; padding:22px 24px 20px;
+    transition:.18s border-color,.18s transform,.18s box-shadow}
+  .card:hover{border-color:#38425c; transform:translateY(-2px); box-shadow:0 12px 40px -20px #000}
+  .card.picked{border-color:var(--accent2); box-shadow:0 0 0 1px var(--accent2), 0 14px 44px -22px var(--accent2)}
+  .card.picked::after{content:"채택"; position:absolute; top:16px; right:18px; font-size:11px; font-weight:800;
+    letter-spacing:.1em; color:#06231e; background:var(--accent2); padding:3px 9px; border-radius:999px}
+
+  .chead{display:flex; align-items:flex-start; gap:16px; cursor:pointer; user-select:none}
+  .rank{flex:0 0 auto; width:40px; height:40px; border-radius:12px; display:grid; place-items:center;
+    font-weight:800; font-size:17px; color:#0b0e15; background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .rank.low{background:linear-gradient(135deg,#39415a,#2b3346); color:var(--sub)}
+  .titles{flex:1 1 auto; min-width:0}
+  .name{font-size:20px; font-weight:750; letter-spacing:-.01em; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .badge{font-size:11px; font-weight:800; letter-spacing:.06em; padding:3px 9px; border-radius:999px; border:1px solid transparent}
+  .b-easy{color:var(--easy); border-color:#2a5f56; background:#0f231f}
+  .b-mid{color:var(--mid); border-color:#5f5330; background:#231d0f}
+  .b-hard{color:var(--hard); border-color:#5f3030; background:#230f0f}
+  .tag{color:var(--sub); font-size:16px; margin-top:6px}
+  .pickbtn{flex:0 0 auto; align-self:center; width:26px; height:26px; border-radius:8px; border:1.5px solid var(--line);
+    background:transparent; cursor:pointer; display:grid; place-items:center; color:transparent; font-size:15px; transition:.15s}
+  .card.picked .pickbtn{border-color:var(--accent2); background:var(--accent2); color:#06231e}
+
+  .body{margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:14px 22px}
+  .field{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px 14px}
+  .field.full{grid-column:1 / -1}
+  .flabel{font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim); font-weight:700; margin-bottom:5px; display:flex; align-items:center; gap:6px}
+  .field p{margin:0; font-size:14.5px; color:#d3dae8}
+  .field.wow{background:linear-gradient(180deg,#16221f,#131a1a); border-color:#2a5f56}
+  .field.wow .flabel{color:var(--accent2)}
+  .field.catch{background:#1c1614; border-color:#4a352c}
+  .field.catch .flabel{color:#ffb38a}
+
+  footer{margin-top:48px; color:var(--dim); font-size:13px; text-align:center; border-top:1px solid var(--line); padding-top:24px}
+  .how-emoji{font-style:normal}
+  @media (max-width:720px){ .body{grid-template-columns:1fr} h1{font-size:30px} .wrap{padding:36px 16px 90px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="kicker">Hyper Typer · Concept Board</div>
+    <h1>나한테 꼭 맞는 <span class="grad">프롬프트 입력 가속기</span> 컨셉 10선</h1>
+    <p class="lead">9개 관점에서 48개를 발산한 뒤 서로 겹치지 않도록 큐레이션한 10개.
+    카드를 눌러 펼치고, 오른쪽 체크로 <b style="color:var(--accent2)">채택</b>을 표시하세요. 여러 개 골라도 됩니다.</p>
+    <div class="meta">
+      <span><b>형태</b> 소프트웨어 앱</span>
+      <span><b>핵심</b> 프롬프트 입력속도 향상 보조</span>
+      <span><b>개인화 축</b> 내 프롬프트 로그·문체 학습 (로컬)</span>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <span>채택 <span class="count" id="cnt">0</span>개</span>
+    <span id="picks" style="color:var(--dim)"></span>
+    <span class="pill">
+      <span class="legend"><span class="dot" style="background:var(--easy)"></span>낮음</span>
+      <span class="legend"><span class="dot" style="background:var(--mid)"></span>중간</span>
+      <span class="legend"><span class="dot" style="background:var(--hard)"></span>높음</span>
+    </span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    하이퍼 타이퍼 · 컨셉 발산 세션 -1 · 채택 후 brainstorming → writing-plans 로 이어집니다.<br>
+    이 파일은 브라우저에만 표시되며 선택 내용은 저장되지 않습니다. 고른 번호를 알려주시면 스펙으로 넘어갈게요.
+  </footer>
+</div>
+
+<script>
+const DATA = [
+ {rank:1,name:"슬래시 사전(私典)",effort:"중간",
+  tag:"내 프롬프트 로그가 스스로 '이거 47번 쳤어, /리팩으로 등록할래?'라고 역제안하는 나만의 슬래시 사전",
+  how:"'/리팩','/버그' 같은 3글자 트리거를 치면 완성된 프롬프트 블록(맥락+톤+제약)이 통째로 확장. 자주 치는 긴 것을 3글자로 압축하는 정보 밀도 게인이 속도의 본질.",
+  personalization:"트리거를 손으로 등록하는 게 아니라, 내 실제 프롬프트 히스토리의 반복 n-gram을 마이닝해 '등록할 만한 것'을 먼저 찾아준다. 내용은 100% 내 문장이라 남의 템플릿 냄새가 안 난다.",
+  differentiator:"일반 텍스트확장기는 사람이 트리거를 직접 등록해야 하지만, 이건 로그 분석으로 등록 후보를 먼저 제안한다. 등록 자체의 마찰이 사라진다.",
+  catch:"프롬프트 로그 수집·저장은 프라이버시 민감 — 로컬 전용·옵트인 필수. 트리거 이름 충돌·기억 부담 관리 필요.",
+  wow:"가장 현실적이면서 임팩트 확실한 앵커. '등록 노동 제거' 한 문장이 텍스트확장기 시장과 즉시 차별화. 오늘 만들어 내일 쓴다."},
+ {rank:2,name:"코드 컨텍스트 고스트",effort:"높음",
+  tag:"지금 열어둔 diff와 에러 로그를 읽고, 내가 치려던 그 문장을 회색으로 미리 깔아준다",
+  how:"입력창에 붙는 순간 활성 편집기의 열린 파일·최근 diff·터미널 마지막 에러를 로컬 스냅샷해 예측 프리픽스로 삽입. '이 함수' 세 글자만 쳐도 실제 심볼·경로·에러까지 채운 완성문을 인라인 제시, Tab으로 문단 수락.",
+  personalization:"레포별 자주 언급하는 심볼·모듈을 색인해 같은 세 글자라도 이 프로젝트 완성문을 우선 띄운다. '고쳐줘/설명해줘' 같은 내 동사 습관을 학습해 문장 꼬리를 내 말투로 마감.",
+  differentiator:"일반 자동완성은 텍스트 히스토리만 본다. 이건 지금 화면의 코드 상태(diff/에러/심볼)를 프리픽스로 써서, 손으로 붙여넣던 컨텍스트를 예측이 대신 채운다.",
+  catch:"활성 앱 컨텍스트 실시간 읽기라 OS 권한·에디터 연동 난도가 크고, 틀린 심볼을 확신에 차 채우면 지우는 비용. 코드 스냅샷 로컬 처리 원칙 필요.",
+  wow:"'붙여넣기 왕복 제거'가 코딩 프롬프트에서 가장 큰 실질 절감. Cursor/Copilot이 못 건드린 '프롬프트 입력' 지점을 정면 공략하는 킬러 데모감."},
+ {rank:3,name:"다음 수 예측",effort:"높음",
+  tag:"방금 받은 AI 답변을 읽고, 내가 이어 칠 다음 프롬프트를 통째로 미리 깔아준다",
+  how:"문장 완성을 넘어 '대화의 다음 턴'을 예측. 직전 LLM 응답(코드·에러해설·계획)을 파싱해 관습적 후속 프롬프트를 고스트로 선제 배치. 빈 입력창 대면 시간을 0에 수렴.",
+  personalization:"계획을 받으면 '쪼개서 하나씩', 코드를 받으면 '테스트부터' 같은 내 후속 습관을 대화 로그로 학습해 다음 수 후보를 내 워크플로 순서로 랭킹.",
+  differentiator:"입력을 '완성'하는 게 아니라 시작도 안 한 다음 프롬프트를 '발제'한다. 빈 화면 대면 시간(가장 큰 숨은 병목)을 없애는 유일한 접근.",
+  catch:"직전 응답 전체를 읽어야 해 컨텍스트·프라이버시 부담. 너무 공격적이면 사고 흐름을 앞질러 방해 — 발제 타이밍 절제가 핵심.",
+  wow:"'타이핑 속도'가 아니라 '빈 화면 마주하는 시간'을 병목으로 재정의한 유일한 컨셉. Claude Code 헤비유저의 멀티턴 리듬에 정확히 꽂힌다."},
+ {rank:4,name:"한영 무변환 레이어 (SeamLayer)",effort:"중간",
+  tag:"한/영 전환키를 없애고, 엄지키 홀드만으로 혼용 입력을 무손실 방출",
+  how:"특정 엄지키를 '누르고 있는 동안'만 영문 레이어로 즉시 진입(momentary layer), 떼면 한글 복귀. IME 토글 왕복 없이 'React 컴포넌트를 만들어줘'를 전환키 0회로. 전환키 누락→깨짐→재입력 루프를 구조적으로 제거.",
+  personalization:"내 로그의 자주 나오는 영문 토큰(useState, npm, PR, Claude)을 학습해, 한글 모드 중에도 첫 자모가 들어오면 그 단어만 영문 레이어로 임시 승격. '내가 늘 영어로 쓰는 단어' 사전이 개인별로 쌓인다.",
+  differentiator:"확장기·자동완성은 한영 전환 실수로 깨진 입력을 복구 못한다. 이건 전환 행위 자체를 물리 레이어로 대체해 병목의 근원(모드 전환)을 없앤다.",
+  catch:"OS별 IME 훅 권한(특히 macOS 보안)·momentary layer 지연 튜닝이 까다롭다. 홀드키 위치가 손에 안 맞으면 엄지 피로 누적.",
+  wow:"한영 혼용 계열의 최강 대표. '깨진 입력을 고친다'가 아니라 '깨질 일을 원천 차단'. 한국 개발자 특화 각이 가장 날카롭다."},
+ {rank:5,name:"웅얼거림 압축기",effort:"중간",
+  tag:"대충 웅얼거려도, 나만의 문체로 각 잡힌 프롬프트가 튀어나온다",
+  how:"말이든 반타자든 파편('어 그 로그인 그거 왜 널 나옴 고쳐')을 받아 개인 스타일 사전으로 정식 프롬프트로 재구성. 완전한 문장을 손으로 만들 필요가 없어져 발화 속도(분당 150단어)가 그대로 입력 속도가 된다. 타자 대비 3~4배.",
+  personalization:"내가 '고쳐줘'라고 쓸 때 실제로 원했던 포맷(재현 스텝+기대결과+파일경로)을 학습해, 같은 웅얼거림을 '내가 원래 쓰던 정밀도'로 복원. 남의 템플릿이 아니라 내 프롬프트 DNA.",
+  differentiator:"받아쓰기(STT)는 말을 글자로 옮길 뿐. 이건 '의도→내 스타일 완성형 프롬프트'로 압축·승격한다. 문법 파편이 구조화된 요청으로 변환되는 게 핵심.",
+  catch:"재구성이 의도를 왜곡하면 신뢰 붕괴. '보내기 전 0.5초 미리보기+한 글자 승인' 안전장치 필수. 한↔영 코드스위칭 음성 인식 품질이 관건.",
+  wow:"음성·멀티모달 대표. 입력 채널을 손가락에서 발화로 바꿔 속도 상한을 물리적으로 돌파. '내 문체 복원'이 범용 STT와 결정적으로 다르다."},
+ {rank:6,name:"코드탭 (ChordTap)",effort:"높음",
+  tag:"왼손 코드(chord) 한 번으로 자주 치는 프롬프트 구문 전체를 쏟아낸다",
+  how:"홈로우 3~4키를 동시에 눌러 '이 함수를 리팩터해줘','엣지케이스 포함 테스트 작성' 같은 15~40자 구문을 1타건에 방출. 동시 타건이라 방출 시간이 상수(60~120ms) — 구문 길이와 무관하게 입력 시간이 O(1)로 붕괴.",
+  personalization:"내 로그를 n-gram 분석해 '나만 자주 치는 구문' 상위 50개를 뽑고, 손가락 도달거리·동시눌림 충돌을 피해 코드-구문 매핑을 자동 배치. 재입력 잦은 구문일수록 더 짧은 코드에 우선 배정.",
+  differentiator:"자동완성은 후보를 '고르는' 선택 비용이 있고, 확장기는 트리거를 순차로 쳐야 한다. 코드탭은 선택도 순차 타건도 0 — 입력 길이와 시간이 완전히 무관.",
+  catch:"화음 조합을 근육기억에 올리기까지 러닝커브가 크고, N-key rollover 하드웨어 지원 필수. 초기 20~30개 암기 전엔 오히려 느리다.",
+  wow:"입력 시간을 문자열 길이에서 완전히 분리하는 유일한 물리 접근. 러닝커브가 진입장벽이자 해자 — 익힌 사람에겐 압도적. 야심찬 문샷."},
+ {rank:7,name:"타이핑 부검",effort:"중간",
+  tag:"내 프롬프트 로그를 부검해 '느린 5%'만 콕 집어 단축키로 바꿔주는 진단 대시보드",
+  how:"프롬프트 전송을 키스트로크 타임스탬프로 기록해 입력 지연·백스페이스 폭발·긴 멈춤을 히트맵화. '이 15글자를 주당 37회 친다'를 진단하고, 시간 잡아먹는 상위 패턴만 스니펫/약어로 자동 발급. 주 12분 절감 같은 예상치로 우선순위.",
+  personalization:"남의 평균이 아니라 오직 내 로그에서 통계적으로 유의미하게 반복·지연되는 구간만 뽑는 '나만의 병목 리포트'. 주간 재진단으로 습관 변화를 추적하고, 이미 체화된 단축은 은퇴시킨다.",
+  differentiator:"일반 확장기는 '내가 등록한' 스니펫만 발동하지만, 이건 무엇을 단축해야 할지 사용자가 몰라도 로그가 알려준다.",
+  catch:"키스트로크 전량 기록은 민감정보 유출 위험 — 로컬 온디바이스+민감필드 마스킹 전제. 리포트를 봐도 실행 안 하면 무용 — '원클릭 채택' UX 필수.",
+  wow:"진단·메타 계층의 유일한 대표. 다른 컨셉이 '어떻게 빠르게 치나'라면 이건 '무엇을 고쳐야 하나'를 답한다. 다른 컨셉의 공급 엔진 역할까지."},
+ {rank:8,name:"리프-매크로 (LeaderKey)",effort:"낮음",
+  tag:"리더키 한 번 뒤 니모닉 두 글자로 긴 구조화 프롬프트를 트리 탐색하듯 호출",
+  how:"Vim leader key를 프롬프트에 이식. 리더키(우측 엄지) 뒤 't'+'d'=TDD 지시, 'r'+'v'=코드리뷰 골격. 순차지만 타건이 상수(리더+2)라 100자 템플릿도 3타로 붕괴. 트리 구조라 도중 온스크린 힌트로 다음 키 후보 표시.",
+  personalization:"니모닉을 내가 직관적으로 떠올리는 단어로 매핑(리뷰=rv). 템플릿 본문도 내 과거 프롬프트에서 추출한 문장 스타일·말투로 채워, '내가 늘 쓰던 문장'이 튀어나온다.",
+  differentiator:"스니펫 확장기는 약어 충돌·평면 네임스페이스가 문제인데, 리더키는 별도 네임스페이스+트리 힌트라 충돌이 없고 발견 가능성이 높다.",
+  catch:"긴 파라미터 프롬프트는 결국 손으로 채워야 해 커버리지 한계. 힌트 오버레이의 짧은 지연이 숙련자에겐 거슬릴 수 있다.",
+  wow:"노력 '낮음'인데 임팩트 즉각적인 가성비 최강. Vim 쓰는 개발자에겐 학습곡선이 이미 익숙 — '기억 부담 없는 능동 소환'을 달성한 유일한 접근."},
+ {rank:9,name:"폼모드 스위치",effort:"높음",
+  tag:"자유 타이핑 대신 목적별 '입력 폼'으로 전환해 필드만 채운다",
+  how:"프롬프트 종류(버그수정/리팩터/PR작성/커밋/리서치)를 고르면 입력창이 그 목적 전용 구조화 폼으로 변신. 다 채우면 뒤에서 완결 프롬프트로 컴파일돼 전송. 필수 필드 강제로 '맥락 빠뜨려 되묻기 당하는' 왕복을 없앤다. 폼↔자유텍스트 한 키 토글.",
+  personalization:"내가 반복하는 작업 유형을 로그에서 뽑아 폼 종류를 자동 생성·정렬하고, 매번 되묻힌 지점(누락 필드)을 학습해 그 필드를 필수로 승격. 폼 라벨 문구도 내 말투로 학습.",
+  differentiator:"확장기·자동완성은 '평문 입력'을 가속하지만, 이건 입력 표면 자체를 폼으로 바꾼다. 프롬프트를 '문장 작성'이 아니라 '양식 작성' 문제로 재정의한다.",
+  catch:"폼이 표현을 가둔다. 정형 작업엔 최고지만 탐색적·즉흥 프롬프트엔 답답 — 토글 이탈이 매끄러워야 한다.",
+  wow:"구조화·빌딩블록 계열 대표. '되묻기 왕복 제거'라는 숨은 절감이 독특. 입력 패러다임 자체를 바꾸는 담대함."},
+ {rank:10,name:"화면 가리키기 말",effort:"높음",
+  tag:"손으로 코드를 가리키고 말로 지시만 — '이거 async로 바꿔줘'",
+  how:"긴 프롬프트의 상당 부분은 '어디를, 무엇을'을 말로 좌표화하는 설명이다. 코드 범위를 드래그·클릭하면 그 위치·심볼·스니펫이 컨텍스트로 자동 첨부되고, 사용자는 '이걸 async로'처럼 짧은 지시만 말한다. 좌표를 말로 푸는 가장 장황한 부분을 통째로 제거.",
+  personalization:"자주 참조하는 파일·심볼에 가중치를 둬 애매한 '이거/저 함수'를 최근 작업 맥락으로 해소. 특정 지시 시 습관적으로 함께 첨부하는 컨텍스트(관련 테스트 파일)를 학습해 자동 동반 첨부 제안.",
+  differentiator:"순수 음성도 순수 타이핑도 아닌 '지시대상은 포인팅, 지시는 음성'의 참조 분리 모델. 프롬프트에서 가장 무거운 '참조 서술'을 물리 제스처로 대체한다.",
+  catch:"에디터·터미널·브라우저마다 포인팅 후킹 방식이 달라 통합 난도 높다. 첨부 컨텍스트 과다 시 프롬프트 비대 — 손 제스처 세기로 첨부량 조절 UX 필요.",
+  wow:"멀티모달이지만 '참조 서술 대체' 각도가 웅얼거림 압축기와 완전히 다르다. 지시와 대상을 두 채널로 분리하는 발상이 신선한 문샷."},
+];
+
+const EFF = {"낮음":"b-easy","중간":"b-mid","높음":"b-hard"};
+const grid = document.getElementById('grid');
+DATA.forEach(d=>{
+  const el = document.createElement('div');
+  el.className='card';
+  el.innerHTML = `
+    <div class="chead" onclick="this.parentNode.classList.toggle('open')">
+      <div class="rank ${d.rank>6?'low':''}">${d.rank}</div>
+      <div class="titles">
+        <div class="name">${d.name} <span class="badge ${EFF[d.effort]}">난이도 ${d.effort}</span></div>
+        <div class="tag">${d.tag}</div>
+      </div>
+      <button class="pickbtn" title="채택" onclick="event.stopPropagation();pick(this)">✓</button>
+    </div>
+    <div class="body">
+      <div class="field"><div class="flabel"><span class="how-emoji">⚡</span> 어떻게 빨라지나</div><p>${d.how}</p></div>
+      <div class="field"><div class="flabel">🎯 나한테 맞추는 법</div><p>${d.personalization}</p></div>
+      <div class="field"><div class="flabel">↔ 차별점</div><p>${d.differentiator}</p></div>
+      <div class="field catch"><div class="flabel">⚠ 주의점</div><p>${d.catch}</p></div>
+      <div class="field wow full"><div class="flabel">★ 채택 포인트</div><p>${d.wow}</p></div>
+    </div>`;
+  grid.appendChild(el);
+});
+
+function pick(btn){
+  const card = btn.closest('.card');
+  card.classList.toggle('picked');
+  const picked = [...document.querySelectorAll('.card.picked')];
+  document.getElementById('cnt').textContent = picked.length;
+  document.getElementById('picks').textContent =
+    picked.length ? '→ ' + picked.map(c=>c.querySelector('.name').childNodes[0].textContent.trim()).join(', ') : '';
+}
+</script>
+</body>
+</html>

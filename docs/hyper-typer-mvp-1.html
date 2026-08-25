@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>하이퍼 타이퍼 — v0 MVP (현재 컨셉)</title>
+<style>
+  :root{
+    --bg:#0d0f14; --panel:#151922; --panel2:#1b2130; --line:#262d3d;
+    --ink:#e8ecf3; --sub:#9aa6bd; --dim:#6c778f;
+    --accent:#7c9cff; --accent2:#5ce0c6; --gold:#ffcf6b; --ok:#5ce0c6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:radial-gradient(1200px 700px at 82% -12%,#1a2030 0,var(--bg) 55%);
+    color:var(--ink); line-height:1.62; -webkit-font-smoothing:antialiased;
+    font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo",Segoe UI,Roboto,sans-serif;}
+  .wrap{max-width:1000px; margin:0 auto; padding:56px 24px 110px}
+  .kicker{font-size:13px; letter-spacing:.18em; color:var(--accent2); text-transform:uppercase; font-weight:700}
+  h1{font-size:36px; margin:10px 0 10px; letter-spacing:-.02em; line-height:1.16}
+  h1 .grad{background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .lead{color:var(--sub); font-size:16px; max-width:800px}
+  .status{display:inline-flex; align-items:center; gap:8px; margin-top:14px; font-size:13px; font-weight:700;
+    color:#06231e; background:var(--ok); padding:5px 12px; border-radius:999px}
+  h2{font-size:21px; margin:50px 0 6px; letter-spacing:-.01em; display:flex; align-items:center; gap:10px}
+  h2 .num{font-size:13px; color:var(--dim); font-weight:700; border:1px solid var(--line); border-radius:8px; padding:2px 8px}
+  .sub2{color:var(--dim); font-size:14px; margin:0 0 16px}
+
+  .flow{display:grid; grid-template-columns:1fr; gap:10px}
+  .step{display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:start; background:linear-gradient(180deg,var(--panel),#12161f); border:1px solid var(--line); border-radius:14px; padding:14px 16px}
+  .step .n{width:30px; height:30px; border-radius:9px; display:grid; place-items:center; font-weight:800; font-size:14px; color:#0b0e15; background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .step .t{font-weight:650; font-size:15px}
+  .step .d{color:var(--sub); font-size:13.5px; margin-top:3px}
+  .step code{background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-size:12px}
+
+  table{width:100%; border-collapse:collapse; margin-top:6px; font-size:13.5px}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{color:var(--dim); font-size:12px; letter-spacing:.06em; text-transform:uppercase; font-weight:700}
+  td code{background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-size:12px}
+  td .r{font-weight:600}
+
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  .card{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+  .card h4{margin:0 0 6px; font-size:14px; color:var(--accent2)}
+  .card p{margin:0; font-size:13.5px; color:#cdd5e6}
+  .card.warn{background:#1c1614; border-color:#4a352c}
+  .card.warn h4{color:#ffb38a}
+
+  pre{background:#0b0e14; border:1px solid var(--line); border-radius:12px; padding:14px 16px; overflow:auto; font-size:13px; color:#d3dae8}
+  ul.check{list-style:none; padding:0; margin:6px 0 0}
+  ul.check li{padding:5px 0 5px 26px; position:relative; font-size:14px; color:#d3dae8}
+  ul.check li::before{content:"✓"; position:absolute; left:0; color:var(--ok); font-weight:800}
+  ul.next li::before{content:"→"; color:var(--accent)}
+  .pill{font-size:11px; font-weight:800; letter-spacing:.06em; padding:2px 8px; border-radius:999px; border:1px solid #2a5f56; color:var(--ok); background:#0f231f}
+
+  footer{margin-top:52px; color:var(--dim); font-size:13px; text-align:center; border-top:1px solid var(--line); padding-top:24px}
+  @media (max-width:720px){ .grid2{grid-template-columns:1fr} h1{font-size:28px} .wrap{padding:36px 16px 80px} .step{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kicker">Hyper Typer · v0 MVP</div>
+  <h1>Orca 위에 떠서 <span class="grad">다음 프롬프트 5개를 던져주는</span> 플로팅 패널</h1>
+  <p class="lead">직전 AI 답변을 읽어 "다음에 보낼 만한 프롬프트" 5개를 제안하고, 복사 버튼으로 클립보드에 넣어 Orca에 붙여넣게 한다.
+  <b style="color:var(--ink)">API 키·결제 없이</b> 로컬 <code>claude</code> CLI로 생성. 자동 주입이 없어 Secure Input·HID·AX 문제를 통째로 회피한다.</p>
+  <span class="status">● 동작 중 — 빌드·실행·자동갱신·CLI 후보·복사 검증 완료 (2026-08-24)</span>
+
+  <h2><span class="num">1</span> 어떻게 도나 — 데이터 흐름</h2>
+  <p class="sub2">키 입력을 가로채지 않는다. 답변을 <b>읽고</b>, 후보를 <b>생성</b>하고, <b>복사</b>만 한다.</p>
+  <div class="flow">
+    <div class="step"><div class="n">1</div><div><div class="t">답변 감지</div><div class="d">Claude Code가 답을 끝내면 <code>~/.claude/projects/…/&lt;session&gt;.jsonl</code>에 append. <b>FSEvents</b>가 감지(0.8s 디바운스). <code>subagents/</code> 제외.</div></div></div>
+    <div class="step"><div class="n">2</div><div><div class="t">직전 답변 추출</div><div class="d">최신 jsonl에서 마지막 assistant 턴의 <code>text</code> 블록만 뽑음(<code>message.id</code> 그룹핑, thinking/tool_use 버림).</div></div></div>
+    <div class="step"><div class="n">3</div><div><div class="t">후보 생성 (키리스)</div><div class="d"><code>claude -p --model haiku</code> print 모드로 "다음 프롬프트 5개"를 JSON 배열로 받음. 로그인된 Claude Code 인증 사용 → 키 불필요(~5-10초).</div></div></div>
+    <div class="step"><div class="n">4</div><div><div class="t">패널 렌더 & 복사</div><div class="d">Orca 창 위 플로팅 패널에 5줄 + 복사 버튼. 클릭 → <code>NSPasteboard</code> → Orca에 <b>수동 붙여넣기</b>. 자동 전송 없음.</div></div></div>
+  </div>
+
+  <h2><span class="num">2</span> 구성 요소 (구현됨)</h2>
+  <table>
+    <thead><tr><th>컴포넌트</th><th>역할</th><th>기술</th></tr></thead>
+    <tbody>
+      <tr><td class="r">OrcaWindowTracker</td><td>Orca 창 프레임 취득·추적</td><td><code>CGWindowList</code>(권한 0) · 0.4s 폴링 · Cocoa 변환 + 듀얼모니터 클램프</td></tr>
+      <tr><td class="r">TranscriptReader</td><td>직전 assistant text 턴 추출</td><td>최신 jsonl 파싱 · subagents 제외 · id 그룹핑</td></tr>
+      <tr><td class="r">TranscriptWatcher</td><td>새 답변 자동 감지</td><td><code>FSEvents</code> · 0.8s 디바운스</td></tr>
+      <tr><td class="r">CandidateGenerator</td><td>후보 5개 생성</td><td><code>zsh -lc → claude -p</code> · JSON 파싱 · 45s 워치독 · 실패 시 fallback</td></tr>
+      <tr><td class="r">CandidateStore</td><td>상태·복사·바뀔 때만 재생성</td><td><code>@MainActor ObservableObject</code></td></tr>
+      <tr><td class="r">FloatingPanel / PanelView</td><td>오버레이 UI·드래그 유지</td><td><code>NSPanel(.nonactivatingPanel)</code> + SwiftUI</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="num">3</span> 실행 방법</h2>
+  <pre>cd HyperTyper
+swift build
+./.build/debug/HyperTyper &      <span style="color:var(--dim)"># 키 불필요 — claude CLI 사용</span>
+killall HyperTyper               <span style="color:var(--dim)"># 종료</span></pre>
+  <p class="sub2" style="margin-top:10px">패널 빈 곳을 드래그해 원하는 자리로 옮기면 유지된다. ↻ 버튼으로 수동 재생성. Orca 위에 뜨고 포커스는 안 뺏는다.</p>
+
+  <h2><span class="num">4</span> 핵심 설계 결정</h2>
+  <div class="grid2">
+    <div class="card"><h4>키리스 — claude CLI 경유</h4><p>Anthropic API 키·결제 대신 이미 로그인된 <code>claude</code> CLI를 print 모드로 호출. 사용량은 소모, 지연 ~5-10초.</p></div>
+    <div class="card"><h4>복사-붙여넣기 = 주입 대체</h4><p>자동 키 주입을 포기해 <b>HID 엔진·Secure Input·AX 커서 좌표</b> 하드 리스크를 전부 우회. 2동작(복사→⌘V)이지만 즉시 빌드 가능.</p></div>
+    <div class="card"><h4>창 레벨 앵커링</h4><p>글자 셀 좌표(Orca=Electron이라 취득 불가) 대신 <b>창 프레임</b>만 사용(CGWindowList). 드래그-유지 + 이동량 추종.</p></div>
+    <div class="card warn"><h4>파킹된 큰 그림</h4><p>원래 4개(SeamLayer·ChordTap·LeaderKey·다음수예측)의 <b>HID 엔진 통합은 뒤로.</b> 이 MVP로 "후속 프롬프트가 도움되나"부터 검증.</p></div>
+  </div>
+
+  <h2><span class="num">5</span> 상태 & 다음</h2>
+  <ul class="check">
+    <li>네이티브 SwiftUI 앱 · Orca 오버레이 앵커링(듀얼모니터 안전) · 드래그 유지</li>
+    <li>transcript 리더(subagents 제외·id 그룹핑) · FSEvents 자동 갱신</li>
+    <li>claude CLI 키리스 후보 생성 · JSON 파싱 · 복사 버튼</li>
+  </ul>
+  <ul class="check next" style="margin-top:10px">
+    <li>후보 품질·톤 다듬기(생성 지침 조정) <span class="pill">다음</span></li>
+    <li>위치/크기 취향 · 마지막 위치 기억(frameAutosave) · 단축키 토글</li>
+    <li>생성 지연(~5-10s) 개선 — 캐시·워밍·스트리밍</li>
+  </ul>
+
+  <footer>
+    하이퍼 타이퍼 · v0 MVP (세션 -1) · 코드 <code>HyperTyper/</code> · 히스토리: concepts-1 / design-1(HID, 파킹)<br>
+    프라이버시: transcript·후보 전부 로컬. claude CLI는 사용자 Claude 사용량 소모.
+  </footer>
+</div>
+</body>
+</html>
