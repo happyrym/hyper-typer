@@ -5,6 +5,8 @@
 
 *An AI assistant that predicts your next prompt. A floating macOS panel over Orca terminals.*
 
+📄 **[프로젝트 개요 1pager 보기](https://htmlpreview.github.io/?https://github.com/happyrym/hyper-typer/blob/main/docs/overview.html)** — 한 페이지로 훑어보기
+
 ---
 
 ## 빠른 설치 (프롬프트 복붙)
