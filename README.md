@@ -7,6 +7,26 @@
 
 ---
 
+## 빠른 설치 (프롬프트 복붙)
+
+아래 블록을 통째로 복사해 **Orca 터미널의 Claude Code에 붙여넣으면** 알아서 설치·실행합니다.
+(전체 프롬프트·설명은 [`SETUP-PROMPT.md`](SETUP-PROMPT.md) 참고)
+
+````text
+하이퍼 타이퍼(hyper-typer)를 내 Mac에 설치하고 실행해줘. Orca 터미널에서 Claude Code로 작업할 때,
+포커스된 터미널 위에 "다음에 보낼 프롬프트 후보 5개"를 띄워주는 보조 도구야. 순서대로 진행하고 막히면 고쳐줘.
+
+1. 사전 점검: macOS 13+, `swift --version`(안 되면 xcode-select --install), `claude --version`(로그인·키 불필요), Orca 터미널 사용 여부
+2. 설치: ~/hyper-typer 없으면 `git clone https://github.com/happyrym/hyper-typer.git ~/hyper-typer`, 있으면 `cd ~/hyper-typer && git pull`
+3. 빌드·실행: `cd ~/hyper-typer && ./build-app.sh && open ~/hyper-typer/HyperTyper.app`
+4. 확인: 메뉴바 ✨ 아이콘 + Orca 터미널 위 후보 패널이 뜨는지 (엔터 제출 시 후보 갱신)
+5. (선택) HyperTyper.app 을 /Applications 로 옮기고 로그인 항목에 추가해 자동 실행
+
+완료되면 실행 상태(pid)와 메뉴바 아이콘 확인 결과만 짧게 알려줘.
+````
+
+---
+
 ## 컨셉
 
 - **무엇** — 프롬프트를 칠 때마다 "다음에 보낼 만한 말" 5개를 옆에 띄워 주는 보조 입력기. 고르면 복사되고, 붙여넣기만 하면 된다.
