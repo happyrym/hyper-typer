@@ -1,14 +1,23 @@
 import AppKit
 
-/// 메뉴바(상태바) 아이콘 + 메뉴. 앱 실행 여부를 보여주고 종료·새로고침을 제공한다.
-/// (에이전트 앱이라 Dock 아이콘이 없으므로 이게 유일한 조작 지점.)
+/// 메뉴바(상태바) 아이콘 + 메뉴. 실행 표시 + 종료·새로고침·글씨 크기 조정.
 @MainActor
 final class StatusBarController: NSObject {
     private let statusItem: NSStatusItem
     private let onRefresh: () -> Void
+    private let onFontSize: (CGFloat) -> Void
+    private var fontItems: [NSMenuItem] = []
+    private var currentSize: CGFloat
 
-    init(onRefresh: @escaping () -> Void) {
+    /// 글씨 크기 5단계.
+    private let sizes: [(String, CGFloat)] = [
+        ("아주 작게", 11), ("작게", 12), ("보통", 13), ("크게", 15), ("아주 크게", 17),
+    ]
+
+    init(currentSize: CGFloat, onRefresh: @escaping () -> Void, onFontSize: @escaping (CGFloat) -> Void) {
+        self.currentSize = currentSize
         self.onRefresh = onRefresh
+        self.onFontSize = onFontSize
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -24,6 +33,20 @@ final class StatusBarController: NSObject {
         menu.addItem(title)
         menu.addItem(.separator())
         menu.addItem(item(title: "지금 후보 새로고침", key: "r", action: #selector(refresh)))
+
+        menu.addItem(.separator())
+        let sizeHeader = NSMenuItem(title: "글씨 크기", action: nil, keyEquivalent: "")
+        sizeHeader.isEnabled = false
+        menu.addItem(sizeHeader)
+        for (label, size) in sizes {
+            let mi = NSMenuItem(title: "  \(label) (\(Int(size)))", action: #selector(setFont(_:)), keyEquivalent: "")
+            mi.target = self
+            mi.representedObject = NSNumber(value: Double(size))
+            mi.state = (size == currentSize) ? .on : .off
+            fontItems.append(mi)
+            menu.addItem(mi)
+        }
+
         menu.addItem(.separator())
         menu.addItem(item(title: "종료", key: "q", action: #selector(quit)))
         statusItem.menu = menu
@@ -33,6 +56,16 @@ final class StatusBarController: NSObject {
         let mi = NSMenuItem(title: title, action: action, keyEquivalent: key)
         mi.target = self
         return mi
+    }
+
+    @objc private func setFont(_ sender: NSMenuItem) {
+        guard let size = (sender.representedObject as? NSNumber).map({ CGFloat($0.doubleValue) }) else { return }
+        currentSize = size
+        for mi in fontItems {
+            let s = (mi.representedObject as? NSNumber).map { CGFloat($0.doubleValue) }
+            mi.state = (s == size) ? .on : .off
+        }
+        onFontSize(size)
     }
 
     @objc private func refresh() { onRefresh() }

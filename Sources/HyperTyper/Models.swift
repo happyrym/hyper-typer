@@ -12,9 +12,15 @@ final class CandidateStore: ObservableObject {
     @Published var candidates: [Candidate] = []
     @Published var lastAnswerPreview: String = ""   // 헤더 info 라인(프로젝트·상태·직전 프롬프트)
     @Published var isRefreshing = false
+    @Published var fontSize: CGFloat = 13           // 메뉴바에서 조절하는 후보 글씨 크기
 
-    private let orca = OrcaState()
-    private let generator = CandidateGenerator()
+    private let orca: FocusResolving
+    private let generator: CandidateGenerating
+
+    init(generator: CandidateGenerating = CandidateGenerator(), orca: FocusResolving = OrcaState()) {
+        self.generator = generator
+        self.orca = orca
+    }
 
     // 포커스된 pane별 후보 캐시: paneKey → (교환 식별키, 후보들)
     private var cache: [String: (key: String, cands: [Candidate])] = [:]
@@ -27,7 +33,7 @@ final class CandidateStore: ObservableObject {
     /// 감시 트리거(포커스 전환·턴 이벤트).
     func refreshIfChanged() { Task { await refresh(force: false) } }
 
-    private func refresh(force: Bool) async {
+    func refresh(force: Bool) async {
         guard let info = orca.focusedPaneInfo() else { return }
         // 캐시 키 = 마지막 '제출한 프롬프트'만. 답변 스트리밍/완료로는 안 바뀌게 해서 왕복 시 캐시가 적중한다.
         let exKey = info.userPrompt ?? ""
@@ -42,15 +48,15 @@ final class CandidateStore: ObservableObject {
             log("HIT  pane=\(info.project) prompt=\"\(String(exKey.prefix(30)))\"")
             return
         }
-        // 2) 낡은 캐시라도 있으면 먼저 보여줘 빈 화면 방지.
-        if let c = cache[info.paneKey] { candidates = c.cands }
+        // 2) 최신 아님 → 이전(낡은) 후보는 숨기고 로딩 상태로 둔다(stale 표시가 혼동을 줘서).
+        candidates = []
+        isRefreshing = true
 
-        // 3) 스피너는 '지금 포커스된 이 pane'이 생성 중일 때만 켠다.
-        if generatingKey == genKey { isRefreshing = true; return }        // 이 pane 생성 진행 중
-        if generatingKey != nil { pending = true; isRefreshing = false; return }  // 다른 pane 생성 중 → 이 pane은 스피너 off
+        // 3) 이 pane 생성이 진행 중이면 대기, 다른 pane 생성 중이면 큐잉(둘 다 로딩 유지).
+        if generatingKey == genKey { return }
+        if generatingKey != nil { pending = true; return }
 
         generatingKey = genKey
-        isRefreshing = true
         let started = Date()
         log("GEN pane=\(info.project) state=\(info.state) prompt=\"\(String((info.userPrompt ?? "").prefix(40)))\"")
 

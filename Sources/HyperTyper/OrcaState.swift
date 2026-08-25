@@ -17,8 +17,8 @@ struct PaneInfo {
 final class OrcaState {
     private let support: URL
 
-    init() {
-        support = FileManager.default.homeDirectoryForCurrentUser
+    init(support: URL? = nil) {
+        self.support = support ?? FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/Orca", isDirectory: true)
     }
 

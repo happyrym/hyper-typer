@@ -15,8 +15,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel = FloatingPanel(view: view)
         panel.orderFrontRegardless()
 
-        // 메뉴바 아이콘(실행 표시 + 종료/새로고침).
-        statusBar = StatusBarController(onRefresh: { [weak self] in self?.store.refreshFromTranscript() })
+        // 메뉴바 아이콘(실행 표시 + 종료/새로고침/글씨 크기).
+        statusBar = StatusBarController(
+            currentSize: store.fontSize,
+            onRefresh: { [weak self] in self?.store.refreshFromTranscript() },
+            onFontSize: { [weak self] size in self?.store.fontSize = size }
+        )
 
         // Orca 창을 추적해 패널을 그 위에 앵커링.
         tracker = OrcaWindowTracker { [weak self] frame, windowID in

@@ -13,9 +13,17 @@ struct PanelView: View {
                     .lineLimit(1)
             }
             Divider()
-            // 생성 중에도 이전 후보를 계속 보여줌(깜빡임 방지).
-            ForEach(Array(store.candidates.enumerated()), id: \.element.id) { idx, candidate in
-                row(index: idx + 1, candidate: candidate)
+            if store.candidates.isEmpty && store.isRefreshing {
+                // 로딩 중엔 이전(낡은) 후보를 감추고 생성 중 표시만.
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("후보 생성 중…").font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 80)
+            } else {
+                ForEach(Array(store.candidates.enumerated()), id: \.element.id) { idx, candidate in
+                    row(index: idx + 1, candidate: candidate)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -45,11 +53,11 @@ struct PanelView: View {
     private func row(index: Int, candidate: Candidate) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Text("\(index)")
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .font(.system(size: store.fontSize - 2, weight: .semibold, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(width: 14, alignment: .trailing)
             Text(candidate.text)
-                .font(.system(size: 12))
+                .font(.system(size: store.fontSize))
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 4)
             Button(action: { store.copy(candidate) }) {

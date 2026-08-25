@@ -69,7 +69,7 @@ final class CandidateGenerator {
     }
 
     /// --output-format json 봉투에서 result를 꺼내 5줄로 파싱. is_error 확인. 번호/불릿/따옴표 제거.
-    private func parseCandidates(_ raw: String) -> [String]? {
+    func parseCandidates(_ raw: String) -> [String]? {
         guard let start = raw.firstIndex(of: "{"), let end = raw.lastIndex(of: "}"), start < end,
               let data = String(raw[start...end]).data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
@@ -82,7 +82,7 @@ final class CandidateGenerator {
         return lines.isEmpty ? nil : lines
     }
 
-    private func stripLeadDecoration(_ line: String) -> String {
+    func stripLeadDecoration(_ line: String) -> String {
         var s = line
         if let r = s.range(of: #"^\s*(\d+[.)]|[-*•])\s+"#, options: .regularExpression) {
             s.removeSubrange(r)
