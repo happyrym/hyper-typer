@@ -6,6 +6,12 @@ struct Candidate: Identifiable, Hashable {
     let text: String
 }
 
+/// 대화의 한 교환: 직전 사용자 프롬프트 + 어시스턴트 답변. 후보 생성의 입력.
+struct Exchange {
+    let userPrompt: String?
+    let assistantAnswer: String?
+}
+
 /// 패널 상태: 포커스된 터미널의 정보 + 그 pane의 후보. pane별 후보 캐시로 전환은 무지연.
 @MainActor
 final class CandidateStore: ObservableObject {
@@ -35,39 +41,48 @@ final class CandidateStore: ObservableObject {
 
     func refresh(force: Bool) async {
         guard let info = orca.focusedPaneInfo() else { return }
-        // 캐시 키 = 마지막 '제출한 프롬프트'만. 답변 스트리밍/완료로는 안 바뀌게 해서 왕복 시 캐시가 적중한다.
-        let exKey = info.userPrompt ?? ""
         lastAnswerPreview = infoText(info)
 
+        let answer = (info.assistantAnswer ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        // 답변이 준비됐을 때만(working=진행 중 제외) 생성 — 그 답변을 근거로 '사용자가 칠 다음 프롬프트'를 예측.
+        // 답변 전엔 생성하지 않고 이 pane의 마지막 완료 후보를 유지한다(질문형 오답 방지).
+        guard info.state != "working", !answer.isEmpty else {
+            if let c = cache[info.paneKey] { candidates = c.cands }
+            isRefreshing = false
+            return
+        }
+
+        // 캐시 키 = 답변(턴 완료마다 갱신). 왕복·스트리밍엔 안 바뀌어 캐시가 적중한다.
+        let exKey = answer
         let genKey = info.paneKey + "|" + exKey
 
         // 1) 이 pane의 캐시가 최신이면 즉시 표시(전환 무지연) + 스피너 off.
         if !force, let c = cache[info.paneKey], c.key == exKey {
             candidates = c.cands
             isRefreshing = false
-            log("HIT  pane=\(info.project) prompt=\"\(String(exKey.prefix(30)))\"")
+            log("HIT  pane=\(info.project)")
             return
         }
-        // 2) 최신 아님 → 이전(낡은) 후보는 숨기고 로딩 상태로 둔다(stale 표시가 혼동을 줘서).
+        // 2) 최신 아님 → 이전(낡은) 후보는 숨기고 로딩 상태로 둔다.
         candidates = []
         isRefreshing = true
 
-        // 3) 이 pane 생성이 진행 중이면 대기, 다른 pane 생성 중이면 큐잉(둘 다 로딩 유지).
+        // 3) 이 pane 생성이 진행 중이면 대기, 다른 pane 생성 중이면 큐잉.
         if generatingKey == genKey { return }
         if generatingKey != nil { pending = true; return }
 
         generatingKey = genKey
         let started = Date()
-        log("GEN pane=\(info.project) state=\(info.state) prompt=\"\(String((info.userPrompt ?? "").prefix(40)))\"")
+        log("GEN pane=\(info.project) answer=\"\(String(answer.prefix(40)))\"")
 
         let fresh = await generator.generate(from: Exchange(userPrompt: info.userPrompt, assistantAnswer: info.assistantAnswer))
         cache[info.paneKey] = (exKey, fresh)
         generatingKey = nil
-        // 생성이 끝난 지금도 여전히 이 pane이 포커스면 화면 갱신 + 스피너 off. 다른 데로 갔으면 캐시만 채운다.
-        if let now = orca.focusedPaneInfo(), now.paneKey == info.paneKey {
+        // 화면 갱신은 여전히 이 pane이 포커스일 때만. 스피너는 pane이 바뀌어도 '무조건' 해제(전환 시 영구 고정 방지).
+        if orca.focusedPaneInfo()?.paneKey == info.paneKey {
             candidates = fresh
-            isRefreshing = false
         }
+        isRefreshing = false
         let dt = String(format: "%.1f", Date().timeIntervalSince(started))
         log("RESULT \(fresh.count) cands in \(dt)s first=\"\(String(fresh.first?.text.prefix(30) ?? ""))\"")
         if pending { pending = false; await refresh(force: false) }

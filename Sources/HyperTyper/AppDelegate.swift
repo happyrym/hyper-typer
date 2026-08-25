@@ -15,11 +15,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel = FloatingPanel(view: view)
         panel.orderFrontRegardless()
 
-        // 메뉴바 아이콘(실행 표시 + 종료/새로고침/글씨 크기).
+        // 저장된 글씨 크기 복원(앱 재실행에도 고정).
+        let savedSize = UserDefaults.standard.double(forKey: "hyper.fontSize")
+        if savedSize >= 11 { store.fontSize = CGFloat(savedSize) }
+
+        // 메뉴바 아이콘(실행 표시 + 종료/새로고침/글씨 크기). 크기 변경 시 UserDefaults에 저장.
         statusBar = StatusBarController(
             currentSize: store.fontSize,
             onRefresh: { [weak self] in self?.store.refreshFromTranscript() },
-            onFontSize: { [weak self] size in self?.store.fontSize = size }
+            onFontSize: { [weak self] size in
+                self?.store.fontSize = size
+                UserDefaults.standard.set(Double(size), forKey: "hyper.fontSize")
+            }
         )
 
         // Orca 창을 추적해 패널을 그 위에 앵커링.
@@ -47,5 +54,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // 첫 로드: 직전 assistant 턴으로 후보 생성.
         store.refreshFromTranscript()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        watcher?.stop()
+        watcher2?.stop()
+        tracker?.stop()
     }
 }

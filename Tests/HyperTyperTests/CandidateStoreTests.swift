@@ -18,17 +18,18 @@ private final class MockOrca: FocusResolving, @unchecked Sendable {
     func focusedPaneInfo() -> PaneInfo? { info }
 }
 
-private func pane(_ key: String, prompt: String, project: String = "proj") -> PaneInfo {
+/// 후보는 '답변'을 근거로 생성되므로 캐시 키도 답변 기준. 헬퍼는 answer를 변수로 둔다.
+private func pane(_ key: String, answer: String, state: String = "done", project: String = "proj") -> PaneInfo {
     PaneInfo(paneKey: key, cwd: "/x/\(project)", project: project,
-             state: "done", userPrompt: prompt, assistantAnswer: "ans")
+             state: state, userPrompt: "p", assistantAnswer: answer)
 }
 
 @MainActor
 final class CandidateStoreTests: XCTestCase {
 
-    func testGeneratesOnFirstResolve() async {
+    func testGeneratesWhenAnswerReady() async {
         let gen = MockGenerator(response: [Candidate(text: "a")])
-        let orca = MockOrca(); orca.info = pane("p:1", prompt: "hello")
+        let orca = MockOrca(); orca.info = pane("p:1", answer: "done answer")
         let store = CandidateStore(generator: gen, orca: orca)
         await store.refresh(force: false)
         XCTAssertEqual(gen.callCount, 1)
@@ -37,39 +38,56 @@ final class CandidateStoreTests: XCTestCase {
 
     func testCacheHitAvoidsRegeneration() async {
         let gen = MockGenerator()
-        let orca = MockOrca(); orca.info = pane("p:1", prompt: "hello")
+        let orca = MockOrca(); orca.info = pane("p:1", answer: "same")
         let store = CandidateStore(generator: gen, orca: orca)
         await store.refresh(force: false)
-        await store.refresh(force: false)   // 같은 pane+프롬프트 → 캐시 적중, 재생성 없음
+        await store.refresh(force: false)   // 같은 pane+답변 → 캐시 적중, 재생성 없음
         XCTAssertEqual(gen.callCount, 1)
     }
 
-    func testPromptChangeRegenerates() async {
+    func testAnswerChangeRegenerates() async {
         let gen = MockGenerator()
-        let orca = MockOrca(); orca.info = pane("p:1", prompt: "hello")
+        let orca = MockOrca(); orca.info = pane("p:1", answer: "answer1")
         let store = CandidateStore(generator: gen, orca: orca)
         await store.refresh(force: false)
-        orca.info = pane("p:1", prompt: "world")   // 같은 pane, 새 프롬프트(=새 제출)
+        orca.info = pane("p:1", answer: "answer2")   // 새 턴 완료 → 새 답변
         await store.refresh(force: false)
         XCTAssertEqual(gen.callCount, 2)
     }
 
-    /// 터미널별 캐시 격리 — A→B→A 왕복 시 A는 캐시 적중(핵심 UX).
+    /// 터미널별 캐시 격리 — A→B→A 왕복 시 A는 캐시 적중.
     func testPerPaneCacheIsolation() async {
         let gen = MockGenerator()
-        let orca = MockOrca(); orca.info = pane("A:1", prompt: "pa")
+        let orca = MockOrca(); orca.info = pane("A:1", answer: "aa")
         let store = CandidateStore(generator: gen, orca: orca)
         await store.refresh(force: false)          // A 생성 (1)
-        orca.info = pane("B:1", prompt: "pb")
+        orca.info = pane("B:1", answer: "bb")
         await store.refresh(force: false)          // B 생성 (2)
-        orca.info = pane("A:1", prompt: "pa")
+        orca.info = pane("A:1", answer: "aa")
         await store.refresh(force: false)          // A로 복귀 → 캐시 적중 (여전히 2)
         XCTAssertEqual(gen.callCount, 2)
     }
 
+    /// 진행 중(working)에는 생성하지 않는다 — 답변이 없어 질문형 오답을 막기 위함.
+    func testWorkingStateSkipsGeneration() async {
+        let gen = MockGenerator()
+        let orca = MockOrca(); orca.info = pane("p:1", answer: "prev", state: "working")
+        let store = CandidateStore(generator: gen, orca: orca)
+        await store.refresh(force: false)
+        XCTAssertEqual(gen.callCount, 0)
+    }
+
+    func testEmptyAnswerSkipsGeneration() async {
+        let gen = MockGenerator()
+        let orca = MockOrca(); orca.info = pane("p:1", answer: "")
+        let store = CandidateStore(generator: gen, orca: orca)
+        await store.refresh(force: false)
+        XCTAssertEqual(gen.callCount, 0)
+    }
+
     func testForceAlwaysRegenerates() async {
         let gen = MockGenerator()
-        let orca = MockOrca(); orca.info = pane("p:1", prompt: "hello")
+        let orca = MockOrca(); orca.info = pane("p:1", answer: "x")
         let store = CandidateStore(generator: gen, orca: orca)
         await store.refresh(force: false)
         await store.refresh(force: true)   // 강제 새로고침은 캐시 무시

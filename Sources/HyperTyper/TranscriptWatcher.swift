@@ -50,6 +50,8 @@ final class TranscriptWatcher {
         self.stream = nil
     }
 
+    deinit { stop() } // FSEvents 콜백이 해제된 객체를 참조하지 않도록.
+
     /// 변경 폭주(한 턴에 수십 라인 append)를 흡수 — 마지막 이벤트 후 조용해지면 한 번만 콜백.
     private func scheduleDebounced() {
         debounce?.cancel()

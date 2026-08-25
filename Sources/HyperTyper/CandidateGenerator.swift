@@ -4,13 +4,12 @@ import Foundation
 /// 키/결제 불필요. 빠르고 깨끗하게: --system-prompt + --strict-mcp-config + --setting-sources ''.
 final class CandidateGenerator {
     private let systemPrompt = """
-    너는 개발자(사용자)가 AI 어시스턴트와 나누는 대화를 돕는다. [직전 내 프롬프트]와 [어시스턴트 답변]을 보고,
-    내가 '다음에 보낼' 짧은 한국어 메시지 5개를 제안하라.
-    핵심 규칙:
-    - 답변이 이미 완료한 작업을 다시 시키지 마라. 완료된 단계 반복 금지.
-    - 대화의 실제 '다음 한 수'만: 진행 승인 / 방향 수정 / 결과 검증 / 되묻기 / 대안 제시 중 서로 다르게.
-    - 답변이 사용자에게 뭔가 물었으면, 그에 답하는 형태를 반드시 하나 포함.
-    - 개발자가 툭 던지듯 짧게. 각 40자 이내, 명령/반응형. 기술용어는 영어 그대로.
+    너는 '사용자(개발자)'가 되어, 방금 받은 [어시스턴트 답변]을 읽고 사용자가 어시스턴트에게 '다음에 보낼' 메시지 5개를 쓴다.
+    너는 어시스턴트가 아니다 — 답변을 대신 작성하거나 사용자에게 되묻는 질문을 만들지 마라. 오직 '사용자가 어시스턴트에게 칠 다음 한 마디'만.
+    형태: 어시스턴트에게 주는 지시/요청/반응 (예: "그대로 진행해줘", "테스트부터 짜줘", "로그인 기록 확인해줘", "왜 이 방식이야?", "3번만 다시해줘").
+    금지 예: "어떤 계정이야?", "확인해 봤나?" 처럼 사용자에게 되묻는 형태(이건 어시스턴트 말투다).
+    규칙: 답변이 이미 한 일을 다시 시키지 마라. 답변이 사용자에게 뭘 물었으면 그에 답하는 형태를 하나 포함.
+    진행/수정/검증/추가지시/대안 중 서로 다르게. 각 40자 이내, 사용자 말투(반말 또는 ~해줘). 기술용어는 영어 그대로.
     출력은 정확히 5줄, 한 줄에 하나. 번호·불릿·따옴표·코드펜스·빈줄·설명 절대 금지.
     """
 
@@ -54,16 +53,30 @@ final class CandidateGenerator {
                 process.standardOutput = out
                 process.standardError = FileHandle.nullDevice
 
-                do { try process.run() } catch { cont.resume(returning: nil); return }
+                // continuation 이중 재개 방지 + 프로세스 hang이어도 caller를 반드시 해제.
+                let lock = NSLock()
+                var resumed = false
+                func finish(_ value: String?) {
+                    lock.lock(); defer { lock.unlock() }
+                    guard !resumed else { return }
+                    resumed = true
+                    cont.resume(returning: value)
+                }
 
-                let watchdog = DispatchWorkItem { if process.isRunning { process.terminate() } }
-                DispatchQueue.global().asyncAfter(deadline: .now() + 90, execute: watchdog)
+                do { try process.run() } catch { finish(nil); return }
 
-                let data = out.fileHandleForReading.readDataToEndOfFile()
-                process.waitUntilExit()
-                watchdog.cancel()
-
-                cont.resume(returning: String(data: data, encoding: .utf8))
+                // 읽기: 별도 dispatch에서 EOF까지 읽고 핸들을 닫는다(누수 방지).
+                DispatchQueue.global().async {
+                    let data = out.fileHandleForReading.readDataToEndOfFile()
+                    try? out.fileHandleForReading.close()
+                    process.waitUntilExit()
+                    finish(String(data: data, encoding: .utf8))
+                }
+                // 워치독: 90초 초과 시 종료하고, hang이어도 caller 해제 보장.
+                DispatchQueue.global().asyncAfter(deadline: .now() + 90) {
+                    if process.isRunning { process.terminate() }
+                    finish(nil)
+                }
             }
         }
     }

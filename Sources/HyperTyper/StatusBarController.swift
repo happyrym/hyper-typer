@@ -35,17 +35,19 @@ final class StatusBarController: NSObject {
         menu.addItem(item(title: "지금 후보 새로고침", key: "r", action: #selector(refresh)))
 
         menu.addItem(.separator())
-        let sizeHeader = NSMenuItem(title: "글씨 크기", action: nil, keyEquivalent: "")
-        sizeHeader.isEnabled = false
-        menu.addItem(sizeHeader)
+        // 글씨 크기는 서브메뉴로 접어 메뉴를 작게 유지.
+        let sizeParent = NSMenuItem(title: "글씨 크기", action: nil, keyEquivalent: "")
+        let sizeSubmenu = NSMenu()
         for (label, size) in sizes {
-            let mi = NSMenuItem(title: "  \(label) (\(Int(size)))", action: #selector(setFont(_:)), keyEquivalent: "")
+            let mi = NSMenuItem(title: "\(label) (\(Int(size)))", action: #selector(setFont(_:)), keyEquivalent: "")
             mi.target = self
             mi.representedObject = NSNumber(value: Double(size))
             mi.state = (size == currentSize) ? .on : .off
             fontItems.append(mi)
-            menu.addItem(mi)
+            sizeSubmenu.addItem(mi)
         }
+        sizeParent.submenu = sizeSubmenu
+        menu.addItem(sizeParent)
 
         menu.addItem(.separator())
         menu.addItem(item(title: "종료", key: "q", action: #selector(quit)))
