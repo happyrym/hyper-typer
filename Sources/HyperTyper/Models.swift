@@ -17,7 +17,8 @@ struct Exchange {
 final class CandidateStore: ObservableObject {
     @Published var candidates: [Candidate] = []
     @Published var lastAnswerPreview: String = ""   // 헤더 info 라인(프로젝트·상태·직전 프롬프트)
-    @Published var isRefreshing = false
+    @Published var isRefreshing = false             // 표시할 후보가 아직 없고 생성 중(전체 로딩)
+    @Published var appendingMore = false            // 이미 뜬 후보 아래에 더 생성 중(early 3 뒤 answer 대기)
     @Published var fontSize: CGFloat = 13           // 메뉴바에서 조절하는 후보 글씨 크기
 
     private let orca: FocusResolving
@@ -115,9 +116,12 @@ final class CandidateStore: ObservableObject {
         updateSpinner(info)
     }
 
-    /// 표시할 후보가 아직 없고 이 pane에 대해 뭔가 생성 중이면 스피너를 켠다(paneKey엔 '|'가 없어 경계가 안전).
+    /// 이 pane에 대해 뭔가 생성 중이면(paneKey엔 '|'가 없어 경계가 안전):
+    /// 아직 표시할 후보가 없으면 전체 로딩(isRefreshing), 이미 떠 있으면 아래에 '더 생성 중'(appendingMore).
     private func updateSpinner(_ info: PaneInfo) {
-        isRefreshing = candidates.isEmpty && inFlight.contains { $0.contains("|\(info.paneKey)|") }
+        let generating = inFlight.contains { $0.contains("|\(info.paneKey)|") }
+        isRefreshing = candidates.isEmpty && generating
+        appendingMore = !candidates.isEmpty && generating
     }
 
     private func trimmed(_ s: String?) -> String {

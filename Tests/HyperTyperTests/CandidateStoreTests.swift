@@ -187,4 +187,37 @@ final class CandidateStoreTests: XCTestCase {
                        ["gen:A:aa", "gen:E:pa"])
         XCTAssertNotEqual(store.candidates.map { $0.text }, ["gen:E:pa", "gen:A:aa"])
     }
+
+    /// early 3개가 뜬 뒤 answer가 아직 생성 중이면 appendingMore=true(아래 '더 생성 중' 표시), 전체 스피너는 아님.
+    func testAppendingMoreWhileAnswerGenerates() async {
+        let orca = MockOrca(); orca.info = pane("p:1", answer: "A1")
+        let gen = ControllableGenerator()
+        gen.responses = ["E:p": [Candidate(text: "e1"), Candidate(text: "e2"), Candidate(text: "e3")],
+                         "A:A1": [Candidate(text: "a1")]]
+        let store = CandidateStore(generator: gen, orca: orca)
+        let t1 = Task { await store.refresh(force: false) }         // E:p + A:A1 시작
+        while !(gen.isWaiting("E:p") && gen.isWaiting("A:A1")) { await Task.yield() }
+        gen.release("E:p")                                          // early 완료 → 3개 표시, answer는 아직
+        while store.candidates.isEmpty { await Task.yield() }
+        XCTAssertEqual(store.candidates.map { $0.text }, ["e1", "e2", "e3"])
+        XCTAssertTrue(store.appendingMore)
+        XCTAssertFalse(store.isRefreshing)
+        gen.release("A:A1"); _ = await t1.value
+        XCTAssertFalse(store.appendingMore)                        // 다 끝나면 꺼짐
+        XCTAssertEqual(store.candidates.map { $0.text }, ["e1", "e2", "e3", "a1"])
+    }
+
+    /// A→B→A 왕복 후에도 A의 early 후보가 캐시에서 즉시 복원돼 화면에 남는다.
+    func testEarlyDisplaySurvivesRoundTrip() async {
+        let gen = MockGenerator()
+        let orca = MockOrca(); orca.info = pane("A:1", answer: "", state: "working", prompt: "pa")
+        let store = CandidateStore(generator: gen, orca: orca)
+        await store.refresh(force: false)                                        // A early
+        XCTAssertEqual(store.candidates.map { $0.text }, ["E1", "E2", "E3"])
+        orca.info = pane("B:1", answer: "", state: "working", prompt: "pb")
+        await store.refresh(force: false)                                        // B early
+        orca.info = pane("A:1", answer: "", state: "working", prompt: "pa")
+        await store.refresh(force: false)                                        // A 복귀 → 캐시 복원
+        XCTAssertEqual(store.candidates.map { $0.text }, ["E1", "E2", "E3"])
+    }
 }

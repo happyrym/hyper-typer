@@ -24,6 +24,16 @@ struct PanelView: View {
                 ForEach(Array(store.candidates.enumerated()), id: \.element.id) { idx, candidate in
                     row(index: idx + 1, candidate: candidate)
                 }
+                if store.appendingMore {
+                    // early 후보는 이미 떠 있고, answer 후보가 아래에 더 붙는 중.
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small).scaleEffect(0.8)
+                        Text("후보 더 생성 중…")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 2)
+                }
             }
             Spacer(minLength: 0)
         }
