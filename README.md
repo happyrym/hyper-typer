@@ -42,7 +42,7 @@
 - **Xcode Command Line Tools** (`xcode-select --install`) — `swift` 빌드용
 - **[Orca](https://orca.computer) 터미널** — 이 앱은 Orca의 로컬 상태로 포커스된 터미널·세션을 읽는다 (Orca 전용)
 - **`claude` CLI 로그인 완료** — 후보 생성에 사용. `claude` 명령이 되면 OK (별도 API 키 불필요)
-- **(선택) 손쉬운 사용 권한** — ⌘⌥1~5 직접 주입 기능에만 필요. 복사 버튼만 쓰면 없어도 된다.
+- **(선택) 손쉬운 사용 권한** — ⌃⌥⌘1~5 직접 주입 기능에만 필요. 복사 버튼만 쓰면 없어도 된다.
 
 ## 설치 & 실행
 
@@ -64,7 +64,7 @@ open HyperTyper.app     # 실행
 2. 포커스된 터미널 위에 패널이 떠서 **후보 5개**를 보여준다 (헤더 `📟 프로젝트 · 상태 · 직전 프롬프트`).
 3. 후보를 입력창에 넣는 방법 두 가지:
    - **복사 버튼** 클릭 → 클립보드 → 붙여넣기(⌘V), 또는
-   - **⌘⌥1~5** — n번째 후보를 Orca 입력창에 **바로 주입**(무클릭). ⌘1~5는 탭 전환과 겹쳐 ⌘⌥ 조합을 쓴다. ⚠️ 첫 사용 시 **시스템 설정 › 개인정보 보호 및 보안 › 손쉬운 사용**에서 HyperTyper를 켜야 한다(주입은 접근성 권한 사용).
+   - **⌃⌥⌘1~5** — n번째 후보를 Orca 입력창에 **바로 주입**(무클릭). ⌘·⌘⌥ + 숫자는 Orca 등이 선점해 겹치므로 세 모디파이어(Hyper) 조합을 쓴다. ⚠️ 첫 사용 시 **시스템 설정 › 개인정보 보호 및 보안 › 손쉬운 사용**에서 HyperTyper를 켜야 한다(주입은 접근성 권한 사용).
 4. Claude가 답변을 마칠 때마다 **다음에 보낼 후보**가 갱신된다 (작업 중에는 직전 후보 유지).
 5. 다른 터미널로 옮기면 그 터미널의 후보로 바뀐다. 이미 본 터미널로 돌아오면 **즉시**(캐시) 표시.
 6. 패널은 드래그로 원하는 위치에 두면 유지된다. 글씨 크기는 메뉴바 ✨ › 글씨 크기에서 조정(고정 저장).
@@ -77,7 +77,7 @@ open HyperTyper.app     # 실행
 | `OrcaState` | `orca-data.json`(activeTabId+activeLeafId) + `agent-hooks/last-status.json` → **포커스된 pane의 세션**(cwd·상태·직전 프롬프트·답변) |
 | `CandidateGenerator` | `claude -p --model haiku` (print 모드)로 후보 5개 생성. 격리된 scratch cwd에서 실행해 자기 트리거 방지 |
 | `CandidateStore` | **pane별 후보 캐시** — 전환 무지연, 프롬프트 바뀔 때만 재생성. 복사 처리 |
-| `HotkeyManager` | Carbon `RegisterEventHotKey`로 **⌘⌥1~5 전역 핫키** 등록 (핫키 감지엔 권한 불필요) |
+| `HotkeyManager` | Carbon `RegisterEventHotKey`로 **⌃⌥⌘1~5 전역 핫키** 등록 (핫키 감지엔 권한 불필요) |
 | `TextInjector` | 선택 후보를 `CGEvent` 유니코드로 **Orca 입력창에 직접 주입** (접근성 권한 사용, 클립보드 우회) |
 | `TranscriptWatcher` | FSEvents로 Orca 상태 변경 감지 (포커스 전환·턴 이벤트) |
 | `FloatingPanel` / `PanelView` / `StatusBarController` | non-activating 오버레이 패널 · SwiftUI · 메뉴바 |

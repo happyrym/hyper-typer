@@ -53,7 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         watcher2.start()
 
-        // ⌘⌥1~5 로 해당 슬롯 후보를 Orca에 직접 주입(클립보드 우회). 주입엔 접근성 권한 필요.
+        // ⌃⌥⌘1~5 로 해당 슬롯 후보를 Orca에 직접 주입(클립보드 우회). 주입엔 접근성 권한 필요.
         TextInjector.ensureTrusted(prompt: true)
         hotkeys = HotkeyManager { [weak self] slot in
             MainActor.assumeIsolated {
