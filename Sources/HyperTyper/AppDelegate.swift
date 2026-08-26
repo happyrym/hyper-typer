@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBar: StatusBarController!
     private var hotkeys: HotkeyManager!
     private let store = CandidateStore()
+    private let pins = PinStore()
+    private var prefs: PreferencesWindowController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let view = PanelView(store: store)
@@ -21,13 +23,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if savedSize >= 11 { store.fontSize = CGFloat(savedSize) }
 
         // 메뉴바 아이콘(실행 표시 + 종료/새로고침/글씨 크기). 크기 변경 시 UserDefaults에 저장.
+        prefs = PreferencesWindowController(pins: pins)
         statusBar = StatusBarController(
             currentSize: store.fontSize,
             onRefresh: { [weak self] in self?.store.refreshFromTranscript() },
             onFontSize: { [weak self] size in
                 self?.store.fontSize = size
                 UserDefaults.standard.set(Double(size), forKey: "hyper.fontSize")
-            }
+            },
+            onEditPins: { [weak self] in self?.prefs.show() }
         )
 
         // Orca 창을 추적해 패널을 그 위에 앵커링.
@@ -55,11 +59,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // ⌃⌥⌘1~5 로 해당 슬롯 후보를 Orca에 직접 주입(클립보드 우회). 주입엔 접근성 권한 필요.
         TextInjector.ensureTrusted(prompt: true)
-        hotkeys = HotkeyManager { [weak self] slot in
+        hotkeys = HotkeyManager { [weak self] number in
             MainActor.assumeIsolated {
-                let text = self?.store.candidateText(at: slot - 1)
-                htLog("HOTKEY press slot=\(slot) text=\"\(String((text ?? "nil").prefix(30)))\"")
-                guard let text, !text.hasPrefix("⚠️") else { return }
+                guard let self else { return }
+                // 0·7·8·9는 고정 문구, 1~6은 생성된 후보 슬롯.
+                let text = self.pins.text(forNumber: number) ?? self.store.candidateText(at: number - 1)
+                htLog("HOTKEY press num=\(number) text=\"\(String((text ?? "nil").prefix(30)))\"")
+                guard let text, !text.isEmpty, !text.hasPrefix("⚠️") else { return }
                 TextInjector.inject(text)
             }
         }

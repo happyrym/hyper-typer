@@ -220,4 +220,25 @@ final class CandidateStoreTests: XCTestCase {
         await store.refresh(force: false)                                        // A 복귀 → 캐시 복원
         XCTAssertEqual(store.candidates.map { $0.text }, ["E1", "E2", "E3"])
     }
+
+    /// 프롬프트가 A→B→A로 되돌아온 사이, 늦게 끝난 B 생성이 유효한 A 캐시/화면을 덮어쓰지 않는다(key-aware 가드).
+    func testStalePromptCompletionDoesNotClobber() async {
+        let orca = MockOrca(); orca.info = pane("p:1", answer: "", state: "working", prompt: "A")
+        let gen = ControllableGenerator()
+        gen.responses = ["E:A": [Candidate(text: "eA")], "E:B": [Candidate(text: "eB")]]
+        let store = CandidateStore(generator: gen, orca: orca)
+        let t1 = Task { await store.refresh(force: false) }        // early A 생성
+        while !gen.isWaiting("E:A") { await Task.yield() }
+        gen.release("E:A"); _ = await t1.value
+        XCTAssertEqual(store.candidates.map { $0.text }, ["eA"])
+        orca.info = pane("p:1", answer: "", state: "working", prompt: "B")   // 프롬프트 B
+        let t2 = Task { await store.refresh(force: false) }        // early B 생성 시작(대기)
+        while !gen.isWaiting("E:B") { await Task.yield() }
+        orca.info = pane("p:1", answer: "", state: "working", prompt: "A")   // 다시 A(캐시 적중)
+        await store.refresh(force: false)
+        XCTAssertEqual(store.candidates.map { $0.text }, ["eA"])
+        gen.release("E:B"); _ = await t2.value                     // 낡은 B 완료 → 덮으면 안 됨
+        XCTAssertEqual(store.candidates.map { $0.text }, ["eA"], "되돌아온 A가 늦게 끝난 B에 밀리면 안 됨")
+        XCTAssertEqual(store.cachedCandidates(forPane: "p:1")?.map { $0.text }, ["eA"])
+    }
 }

@@ -6,6 +6,7 @@ final class StatusBarController: NSObject {
     private let statusItem: NSStatusItem
     private let onRefresh: () -> Void
     private let onFontSize: (CGFloat) -> Void
+    private let onEditPins: () -> Void
     private var fontItems: [NSMenuItem] = []
     private var currentSize: CGFloat
 
@@ -14,10 +15,12 @@ final class StatusBarController: NSObject {
         ("아주 작게", 11), ("작게", 12), ("보통", 13), ("크게", 15), ("아주 크게", 17),
     ]
 
-    init(currentSize: CGFloat, onRefresh: @escaping () -> Void, onFontSize: @escaping (CGFloat) -> Void) {
+    init(currentSize: CGFloat, onRefresh: @escaping () -> Void, onFontSize: @escaping (CGFloat) -> Void,
+         onEditPins: @escaping () -> Void) {
         self.currentSize = currentSize
         self.onRefresh = onRefresh
         self.onFontSize = onFontSize
+        self.onEditPins = onEditPins
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -49,6 +52,8 @@ final class StatusBarController: NSObject {
         sizeParent.submenu = sizeSubmenu
         menu.addItem(sizeParent)
 
+        menu.addItem(item(title: "고정 문구 편집…", key: "", action: #selector(editPins)))
+
         menu.addItem(.separator())
         menu.addItem(item(title: "종료", key: "q", action: #selector(quit)))
         statusItem.menu = menu
@@ -71,5 +76,6 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func refresh() { onRefresh() }
+    @objc private func editPins() { onEditPins() }
     @objc private func quit() { NSApp.terminate(nil) }
 }

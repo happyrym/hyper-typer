@@ -93,13 +93,20 @@ final class CandidateStore: ObservableObject {
         let fresh = await generator.generate(from: exchange, count: n)
 
         inFlight.remove(flightKey)
-        // 최신 생성일 때만 캐시 반영 — 완료 순서가 뒤바뀌어도 낡은 결과가 최신을 덮어쓰지 않는다.
-        if seqMap[seqKey] == seq {
+        // 캐시 반영 판정:
+        //  - 이 pane이 지금 포커스면, 완료된 key가 '현재 화면의 key'와 같을 때만 쓴다.
+        //    (프롬프트/답변이 A→B→A로 되돌아온 사이 늦게 끝난 B가 유효한 A 캐시를 밀어내는 것 방지.)
+        //  - 배경 pane이면 현재 key를 알 수 없으므로 최신 시작분(seq)만 반영(최선).
+        let cur = orca.focusedPaneInfo()
+        let isFocused = cur?.paneKey == info.paneKey
+        let curKey = stream == .early ? trimmed(cur?.userPrompt) : trimmed(cur?.assistantAnswer)
+        let keepResult = isFocused ? (curKey == key) : (seqMap[seqKey] == seq)
+        if keepResult {
             let slot = Slot(key: key, cands: fresh)
             if stream == .early { earlyCache[info.paneKey] = slot } else { answerCache[info.paneKey] = slot }
         }
-        // 완료 시점에도 이 pane이 포커스면 화면 갱신(다른 pane으로 옮겼으면 그 pane 몫이므로 건드리지 않음).
-        if let cur = orca.focusedPaneInfo(), cur.paneKey == info.paneKey { recompute(cur) }
+        // 포커스 중이면 화면 재구성(다른 pane으로 옮겼으면 그 pane 몫이므로 건드리지 않음).
+        if isFocused, let cur { recompute(cur) }
         let dt = String(format: "%.1f", Date().timeIntervalSince(started))
         log("RESULT \(stream.rawValue) \(fresh.count) cands in \(dt)s")
     }
