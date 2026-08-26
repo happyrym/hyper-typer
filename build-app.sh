@@ -12,6 +12,9 @@ mkdir -p "$APP/Contents/MacOS"
 cp .build/release/HyperTyper "$APP/Contents/MacOS/HyperTyper"
 cp Info.plist "$APP/Contents/Info.plist"
 
+# ad-hoc 서명 — 접근성 권한이 좀 더 안정적으로 붙게. 안정 식별자 지정.
+codesign --force --deep --sign - --identifier com.eden.hypertyper "$APP" 2>/dev/null || true
+
 echo "✅ 완료: $(pwd)/$APP"
 echo "   • 실행: 더블클릭 (또는  open $APP )"
 echo "   • 종료: 메뉴바 ✨ 아이콘 → 종료"

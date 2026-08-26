@@ -108,6 +108,12 @@ final class CandidateStore: ObservableObject {
         }
     }
 
+    /// 슬롯 번호(0-based)의 후보 텍스트. 범위 밖이면 nil.
+    func candidateText(at index: Int) -> String? {
+        guard index >= 0, index < candidates.count else { return nil }
+        return candidates[index].text
+    }
+
     /// 후보를 클립보드에 복사 → 사용자는 Orca에 붙여넣기만.
     func copy(_ candidate: Candidate) {
         let pb = NSPasteboard.general

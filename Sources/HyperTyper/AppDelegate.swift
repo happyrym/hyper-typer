@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var watcher: TranscriptWatcher!
     private var watcher2: TranscriptWatcher!
     private var statusBar: StatusBarController!
+    private var hotkeys: HotkeyManager!
     private let store = CandidateStore()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -52,6 +53,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         watcher2.start()
 
+        // ⌘⌥1~5 로 해당 슬롯 후보를 Orca에 직접 주입(클립보드 우회). 주입엔 접근성 권한 필요.
+        TextInjector.ensureTrusted(prompt: true)
+        hotkeys = HotkeyManager { [weak self] slot in
+            MainActor.assumeIsolated {
+                let text = self?.store.candidateText(at: slot - 1)
+                htLog("HOTKEY press slot=\(slot) text=\"\(String((text ?? "nil").prefix(30)))\"")
+                guard let text, !text.hasPrefix("⚠️") else { return }
+                TextInjector.inject(text)
+            }
+        }
+        hotkeys.register()
+
         // 첫 로드: 직전 assistant 턴으로 후보 생성.
         store.refreshFromTranscript()
     }
@@ -60,5 +73,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         watcher?.stop()
         watcher2?.stop()
         tracker?.stop()
+        hotkeys?.unregister()
     }
 }
