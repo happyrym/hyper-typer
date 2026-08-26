@@ -33,6 +33,9 @@ final class CandidateStore: ObservableObject {
     // 진행 중인 생성들의 "paneKey|exKey" 집합 — pane별 병렬 생성을 허용하고,
     // 동일 (pane, 답변) 조합의 중복 실행만 막는다. @MainActor라 락 없이 안전.
     private var inFlight: Set<String> = []
+    // pane별 '가장 최근에 시작된 생성' 순번 — 완료 순서가 뒤바뀌어도(병렬·지연 편차)
+    // 최신 생성만 캐시를 쓰게 해 낡은 결과가 최신 결과를 덮어쓰는 것을 막는다.
+    private var paneSeq: [String: Int] = [:]
 
     /// 수동 새로고침(버튼).
     func refreshFromTranscript() { Task { await refresh(force: true) } }
@@ -48,8 +51,11 @@ final class CandidateStore: ObservableObject {
         // 답변이 준비됐을 때만(working=진행 중 제외) 생성 — 그 답변을 근거로 '사용자가 칠 다음 프롬프트'를 예측.
         // 답변 전엔 생성하지 않고 이 pane의 마지막 완료 후보를 유지한다(질문형 오답 방지).
         guard info.state != "working", !answer.isEmpty else {
+            // 이 pane 생성이 아직 진행 중이면 스피너를 유지한다 — 새 턴 시작(working) 때
+            // 성급히 끄면 곧 도착할 결과 전까지 패널이 빈 채로 깜빡인다.
+            let generating = inFlight.contains { $0.hasPrefix(info.paneKey + "|") }
             if let c = cache[info.paneKey] { candidates = c.cands }
-            isRefreshing = false
+            if !generating { isRefreshing = false }
             return
         }
 
@@ -72,16 +78,21 @@ final class CandidateStore: ObservableObject {
         //    다른 pane이 생성 중이어도 막지 않는다 — 각 pane이 독립적으로 병렬 생성된다.
         if inFlight.contains(genKey) { return }
         inFlight.insert(genKey)
+        let seq = (paneSeq[info.paneKey] ?? 0) + 1
+        paneSeq[info.paneKey] = seq
         let started = Date()
         log("GEN pane=\(info.project) answer=\"\(String(answer.prefix(40)))\"")
 
         let fresh = await generator.generate(from: Exchange(userPrompt: info.userPrompt, assistantAnswer: info.assistantAnswer))
 
         inFlight.remove(genKey)
-        cache[info.paneKey] = (exKey, fresh)
-        // 화면 반영은 '완료 시점에도 이 pane이 포커스이고 그 답변이 여전히 최신'일 때만.
-        // 그 사이 다른 pane으로 옮겼거나 새 턴이 오면 결과가 낡은 것이므로 화면·스피너를 건드리지 않는다
-        // (다른 pane의 진행 중 스피너를 잘못 끄는 것을 방지).
+        // 캐시는 '이 pane의 가장 최근에 시작된 생성'일 때만 쓴다 — 완료 역전 시 낡은 답변의
+        // 결과가 이미 반영된 최신 결과를 덮어쓰는 것을 막는다(그러면 다음 refresh가 캐시 미스로 헛돈다).
+        if paneSeq[info.paneKey] == seq {
+            cache[info.paneKey] = (exKey, fresh)
+        }
+        // 화면·스피너 반영은 완료 시점에도 이 pane이 포커스이고 답변이 여전히 최신일 때만
+        // (다른 pane으로 옮겼거나 새 턴이 오면 낡은 결과이므로 건드리지 않아, 배경 pane 스피너 오작동 방지).
         if let cur = orca.focusedPaneInfo(),
            cur.paneKey == info.paneKey,
            (cur.assistantAnswer ?? "").trimmingCharacters(in: .whitespacesAndNewlines) == exKey {

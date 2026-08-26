@@ -32,6 +32,22 @@ private final class FocusMutatingGenerator: CandidateGenerating, @unchecked Send
     }
 }
 
+/// 완료 시점을 테스트가 제어하는 생성기 — 답변(exKey)별로 continuation을 붙잡아
+/// 두 refresh Task가 실제로 동시에 in-flight가 되는 인터리빙을 재현한다(@MainActor 단일 스레드).
+private final class ControllableGenerator: CandidateGenerating, @unchecked Sendable {
+    private(set) var callCount = 0
+    private var continuations: [String: CheckedContinuation<Void, Never>] = [:]
+    var responses: [String: [Candidate]] = [:]
+    func generate(from exchange: Exchange) async -> [Candidate] {
+        let key = (exchange.assistantAnswer ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        callCount += 1
+        await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in continuations[key] = c }
+        return responses[key] ?? [Candidate(text: "gen:\(key)")]
+    }
+    func isWaiting(_ key: String) -> Bool { continuations[key] != nil }
+    func release(_ key: String) { continuations.removeValue(forKey: key)?.resume() }
+}
+
 /// 후보는 '답변'을 근거로 생성되므로 캐시 키도 답변 기준. 헬퍼는 answer를 변수로 둔다.
 private func pane(_ key: String, answer: String, state: String = "done", project: String = "proj") -> PaneInfo {
     PaneInfo(paneKey: key, cwd: "/x/\(project)", project: project,
@@ -138,5 +154,49 @@ final class CandidateStoreTests: XCTestCase {
         let store = CandidateStore(generator: gen, orca: orca)
         await store.refresh(force: false)
         XCTAssertNotEqual(store.candidates.map { $0.text }, ["old"])
+    }
+
+    /// 동시에 같은 (pane, 답변)로 refresh가 두 번 들어와도 생성은 한 번만 실행된다(inFlight 중복 차단).
+    func testConcurrentSameGenKeyDedup() async {
+        let orca = MockOrca(); orca.info = pane("p:1", answer: "X")
+        let gen = ControllableGenerator()
+        let store = CandidateStore(generator: gen, orca: orca)
+        let t1 = Task { await store.refresh(force: false) }   // 생성 시작 후 continuation에서 대기
+        while !gen.isWaiting("X") { await Task.yield() }
+        await store.refresh(force: false)                     // 같은 genKey → 즉시 반환, 재생성 없음
+        XCTAssertEqual(gen.callCount, 1)
+        gen.release("X"); _ = await t1.value
+        XCTAssertEqual(store.candidates.map { $0.text }, ["gen:X"])
+    }
+
+    /// 완료 역전(A2가 A1보다 먼저 끝남) 시, 낡은 A1 결과가 최신 A2 캐시·화면을 덮어쓰지 않는다(Fix B).
+    func testOutOfOrderCompletionKeepsLatest() async {
+        let orca = MockOrca(); orca.info = pane("p:1", answer: "A1")
+        let gen = ControllableGenerator()
+        gen.responses = ["A1": [Candidate(text: "r1")], "A2": [Candidate(text: "r2")]]
+        let store = CandidateStore(generator: gen, orca: orca)
+        let t1 = Task { await store.refresh(force: false) }   // A1 생성 시작 → 대기
+        while !gen.isWaiting("A1") { await Task.yield() }
+        orca.info = pane("p:1", answer: "A2")                 // 새 턴
+        let t2 = Task { await store.refresh(force: false) }   // A2 생성 시작 → 대기
+        while !gen.isWaiting("A2") { await Task.yield() }
+        gen.release("A2"); _ = await t2.value                 // 최신이 먼저 완료
+        gen.release("A1"); _ = await t1.value                 // 낡은 것이 나중 완료(덮어쓰면 안 됨)
+        XCTAssertEqual(store.cachedCandidates(forPane: "p:1")?.map { $0.text }, ["r2"])
+        XCTAssertEqual(store.candidates.map { $0.text }, ["r2"])
+    }
+
+    /// 생성 진행 중 같은 pane에 새 턴(working)이 오면 스피너를 유지한다(Fix A — 빈 패널 깜빡임 방지).
+    func testNewTurnDuringGenerationKeepsSpinner() async {
+        let orca = MockOrca(); orca.info = pane("p:1", answer: "A1")
+        let gen = ControllableGenerator()
+        let store = CandidateStore(generator: gen, orca: orca)
+        let t1 = Task { await store.refresh(force: false) }   // A1 생성 시작 → isRefreshing=true, 대기
+        while !gen.isWaiting("A1") { await Task.yield() }
+        XCTAssertTrue(store.isRefreshing)
+        orca.info = pane("p:1", answer: "", state: "working") // 새 턴: 진행 중, 답변 비어 있음
+        await store.refresh(force: false)
+        XCTAssertTrue(store.isRefreshing, "생성 진행 중엔 새 턴 시작에도 스피너를 유지해야 한다")
+        gen.release("A1"); _ = await t1.value
     }
 }
