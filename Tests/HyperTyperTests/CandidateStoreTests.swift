@@ -18,6 +18,20 @@ private final class MockOrca: FocusResolving, @unchecked Sendable {
     func focusedPaneInfo() -> PaneInfo? { info }
 }
 
+/// 생성 '도중' 포커스 상태가 바뀌는 상황을 재현하는 mock — 병렬 생성의 낡은 결과 폐기 가드 검증용.
+private final class FocusMutatingGenerator: CandidateGenerating, @unchecked Sendable {
+    let orca: MockOrca
+    let during: PaneInfo
+    let response: [Candidate]
+    init(orca: MockOrca, during: PaneInfo, response: [Candidate]) {
+        self.orca = orca; self.during = during; self.response = response
+    }
+    func generate(from exchange: Exchange) async -> [Candidate] {
+        orca.info = during   // 생성이 끝나기 전 포커스/답변이 바뀐 상태로 만든다
+        return response
+    }
+}
+
 /// 후보는 '답변'을 근거로 생성되므로 캐시 키도 답변 기준. 헬퍼는 answer를 변수로 둔다.
 private func pane(_ key: String, answer: String, state: String = "done", project: String = "proj") -> PaneInfo {
     PaneInfo(paneKey: key, cwd: "/x/\(project)", project: project,
@@ -101,5 +115,28 @@ final class CandidateStoreTests: XCTestCase {
         await store.refresh(force: false)
         XCTAssertEqual(gen.callCount, 0)
         XCTAssertTrue(store.candidates.isEmpty)
+    }
+
+    /// 병렬 생성: A 생성이 끝났을 때 포커스가 이미 B로 옮겨졌으면 A 결과로 화면을 덮지 않는다.
+    func testBackgroundCompletionDoesNotClobberFocusedPane() async {
+        let orca = MockOrca(); orca.info = pane("A:1", answer: "aa")
+        let gen = FocusMutatingGenerator(orca: orca,
+                                         during: pane("B:1", answer: "bb"),
+                                         response: [Candidate(text: "A-result")])
+        let store = CandidateStore(generator: gen, orca: orca)
+        await store.refresh(force: false)
+        XCTAssertNotEqual(store.candidates.map { $0.text }, ["A-result"])
+        XCTAssertEqual(store.cachedCandidates(forPane: "A:1")?.map { $0.text }, ["A-result"])  // 캐시엔 남는다
+    }
+
+    /// 병렬 생성: 같은 pane에서 생성 도중 새 턴(새 답변)이 오면, 낡은 답변의 결과는 화면에 반영하지 않는다.
+    func testStaleAnswerResultDiscarded() async {
+        let orca = MockOrca(); orca.info = pane("A:1", answer: "answer1")
+        let gen = FocusMutatingGenerator(orca: orca,
+                                         during: pane("A:1", answer: "answer2"),
+                                         response: [Candidate(text: "old")])
+        let store = CandidateStore(generator: gen, orca: orca)
+        await store.refresh(force: false)
+        XCTAssertNotEqual(store.candidates.map { $0.text }, ["old"])
     }
 }

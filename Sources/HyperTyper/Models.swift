@@ -30,8 +30,9 @@ final class CandidateStore: ObservableObject {
 
     // 포커스된 pane별 후보 캐시: paneKey → (교환 식별키, 후보들)
     private var cache: [String: (key: String, cands: [Candidate])] = [:]
-    private var generatingKey: String?     // 현재 생성 중 "paneKey|exKey"
-    private var pending = false
+    // 진행 중인 생성들의 "paneKey|exKey" 집합 — pane별 병렬 생성을 허용하고,
+    // 동일 (pane, 답변) 조합의 중복 실행만 막는다. @MainActor라 락 없이 안전.
+    private var inFlight: Set<String> = []
 
     /// 수동 새로고침(버튼).
     func refreshFromTranscript() { Task { await refresh(force: true) } }
@@ -67,25 +68,28 @@ final class CandidateStore: ObservableObject {
         candidates = []
         isRefreshing = true
 
-        // 3) 이 pane 생성이 진행 중이면 대기, 다른 pane 생성 중이면 큐잉.
-        if generatingKey == genKey { return }
-        if generatingKey != nil { pending = true; return }
-
-        generatingKey = genKey
+        // 3) 이 (pane, 답변) 생성이 이미 진행 중이면 중복 실행하지 않는다(완료 콜백이 화면을 갱신).
+        //    다른 pane이 생성 중이어도 막지 않는다 — 각 pane이 독립적으로 병렬 생성된다.
+        if inFlight.contains(genKey) { return }
+        inFlight.insert(genKey)
         let started = Date()
         log("GEN pane=\(info.project) answer=\"\(String(answer.prefix(40)))\"")
 
         let fresh = await generator.generate(from: Exchange(userPrompt: info.userPrompt, assistantAnswer: info.assistantAnswer))
+
+        inFlight.remove(genKey)
         cache[info.paneKey] = (exKey, fresh)
-        generatingKey = nil
-        // 화면 갱신은 여전히 이 pane이 포커스일 때만. 스피너는 pane이 바뀌어도 '무조건' 해제(전환 시 영구 고정 방지).
-        if orca.focusedPaneInfo()?.paneKey == info.paneKey {
+        // 화면 반영은 '완료 시점에도 이 pane이 포커스이고 그 답변이 여전히 최신'일 때만.
+        // 그 사이 다른 pane으로 옮겼거나 새 턴이 오면 결과가 낡은 것이므로 화면·스피너를 건드리지 않는다
+        // (다른 pane의 진행 중 스피너를 잘못 끄는 것을 방지).
+        if let cur = orca.focusedPaneInfo(),
+           cur.paneKey == info.paneKey,
+           (cur.assistantAnswer ?? "").trimmingCharacters(in: .whitespacesAndNewlines) == exKey {
             candidates = fresh
+            isRefreshing = false
         }
-        isRefreshing = false
         let dt = String(format: "%.1f", Date().timeIntervalSince(started))
         log("RESULT \(fresh.count) cands in \(dt)s first=\"\(String(fresh.first?.text.prefix(30) ?? ""))\"")
-        if pending { pending = false; await refresh(force: false) }
     }
 
     private func infoText(_ info: PaneInfo) -> String {
@@ -107,6 +111,9 @@ final class CandidateStore: ObservableObject {
             try? data.write(to: url)
         }
     }
+
+    /// 특정 pane에 캐시된 후보(없으면 nil). 병렬 생성 검증·디버그용.
+    func cachedCandidates(forPane paneKey: String) -> [Candidate]? { cache[paneKey]?.cands }
 
     /// 슬롯 번호(0-based)의 후보 텍스트. 범위 밖이면 nil.
     func candidateText(at index: Int) -> String? {
