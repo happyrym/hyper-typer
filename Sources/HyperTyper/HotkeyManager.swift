@@ -10,10 +10,10 @@ final class HotkeyManager {
     private var refs: [EventHotKeyRef?] = []
     private let signature: OSType = 0x48545950 // 'HTYP'
 
-    // ⌘⌥1~5 의 가상 키코드.
+    // ⌃⌥⌘1~6 의 가상 키코드.
     private let keyCodes: [UInt32] = [
         UInt32(kVK_ANSI_1), UInt32(kVK_ANSI_2), UInt32(kVK_ANSI_3),
-        UInt32(kVK_ANSI_4), UInt32(kVK_ANSI_5),
+        UInt32(kVK_ANSI_4), UInt32(kVK_ANSI_5), UInt32(kVK_ANSI_6),
     ]
 
     init(onPress: @escaping (Int) -> Void) {
