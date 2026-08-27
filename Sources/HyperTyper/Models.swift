@@ -108,7 +108,7 @@ final class CandidateStore: ObservableObject {
         // 포커스 중이면 화면 재구성(다른 pane으로 옮겼으면 그 pane 몫이므로 건드리지 않음).
         if isFocused, let cur { recompute(cur) }
         let dt = String(format: "%.1f", Date().timeIntervalSince(started))
-        log("RESULT \(stream.rawValue) \(fresh.count) cands in \(dt)s")
+        log("RESULT \(stream.rawValue) \(fresh.count) cands in \(dt)s: \(fresh.map { $0.text }.joined(separator: " | "))")
     }
 
     /// 두 스트림 캐시를 현재 pane 상태에 맞춰 합쳐 화면(candidates)과 스피너를 구성한다.

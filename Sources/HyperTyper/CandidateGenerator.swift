@@ -15,6 +15,19 @@ final class CandidateGenerator {
         """
     }
 
+    /// early(엔터 직후) 전용 — 답변이 아직 없다. 방금 보낸 프롬프트만 보고 '이어서 보낼' 다음 메시지를 예측한다.
+    private func earlySystemPrompt(count: Int) -> String {
+        """
+        너는 '사용자(개발자)'다. 방금 어시스턴트에게 [내 프롬프트]를 보냈고, 아직 답변을 기다리는 중이다.
+        답변이 오기 전에 미리, 네가 '이어서 보낼 만한' 다음 메시지 \(count)개를 쓴다.
+        너는 어시스턴트가 아니다 — 답변을 대신 쓰거나 사용자에게 되묻는 질문을 만들지 마라. 오직 '내가 어시스턴트에게 칠 다음 한 마디'만.
+        서로 다른 방향으로 \(count)개: (1) 방금 요청의 보강·조건 추가, (2) 관련된 다음 단계 지시, (3) 확인·검증 요청 또는 대안 제시.
+        예: "그럼 테스트도 같이 붙여줘", "엣지케이스도 처리해줘", "끝나면 커밋까지 해줘", "왜 그 방식이야?", "더 간단한 방법 없어?".
+        각 40자 이내, 사용자 말투(반말 또는 ~해줘). 기술용어는 영어 그대로.
+        출력은 정확히 \(count)줄, 한 줄에 하나. 번호·불릿·따옴표·코드펜스·빈줄·설명 절대 금지.
+        """
+    }
+
     func generate(from exchange: Exchange, count: Int = 5) async -> [Candidate] {
         let prompt = (exchange.userPrompt ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let answer = (exchange.assistantAnswer ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -24,16 +37,21 @@ final class CandidateGenerator {
             return fallback(count: count, note: "claude CLI 실행 실패/타임아웃")
         }
         guard let cands = parseCandidates(raw), !cands.isEmpty else {
+            htLog("GEN-PARSE fail want=\(count) rawLen=\(raw.count) head=\"\(String(raw.prefix(80)))\"")
             return fallback(count: count, note: "후보 파싱 실패")
         }
+        htLog("GEN-PARSE want=\(count) got=\(cands.count): \(cands.joined(separator: " | "))")
         return Array(cands.prefix(count)).map { Candidate(text: $0) }
     }
 
     private func runClaudeCLI(userPrompt: String?, answer: String, count: Int) async -> String? {
-        let sys = systemPrompt(count: count)
+        // 답변이 없으면 early(엔터 직후) 모드 — 프롬프트만으로 예측하는 전용 지시를 쓴다.
+        let isEarly = answer.isEmpty
+        let sys = isEarly ? earlySystemPrompt(count: count) : systemPrompt(count: count)
         let up = userPrompt.map { String($0.prefix(1500)) } ?? "(없음)"
-        let ans = answer.isEmpty ? "(아직 없음 — 방금 이 프롬프트를 보냈고 진행 중)" : answer
-        let context = "[직전 내 프롬프트]\n\(up)\n\n[어시스턴트 답변]\n\(ans)"
+        let context = isEarly
+            ? "[방금 내가 보낸 프롬프트]\n\(up)"
+            : "[직전 내 프롬프트]\n\(up)\n\n[어시스턴트 답변]\n\(answer)"
         return await withCheckedContinuation { cont in
             DispatchQueue.global(qos: .userInitiated).async {
                 // 격리된 scratch cwd — 생성용 claude -p의 transcript가 여기 쌓이며,
