@@ -53,6 +53,7 @@ final class StatusBarController: NSObject {
         menu.addItem(sizeParent)
 
         menu.addItem(item(title: "고정 문구 편집…", key: "", action: #selector(editPins)))
+        menu.addItem(item(title: "손쉬운 사용 권한 열기", key: "", action: #selector(openAccessibility)))
 
         menu.addItem(.separator())
         menu.addItem(item(title: "종료", key: "q", action: #selector(quit)))
@@ -77,5 +78,10 @@ final class StatusBarController: NSObject {
 
     @objc private func refresh() { onRefresh() }
     @objc private func editPins() { onEditPins() }
+    @objc private func openAccessibility() {
+        // 재빌드 후 접근성 권한 재승인을 빠르게 하도록 손쉬운 사용 창을 바로 연다.
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
+        NSWorkspace.shared.open(url)
+    }
     @objc private func quit() { NSApp.terminate(nil) }
 }
