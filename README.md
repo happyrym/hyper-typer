@@ -1,5 +1,7 @@
 # hyper-typer
 
+[![CI](https://github.com/happyrym/hyper-typer/actions/workflows/ci.yml/badge.svg)](https://github.com/happyrym/hyper-typer/actions/workflows/ci.yml)
+
 **당신의 다음 프롬프트를 예측하는 AI 보조 입력 도구.** Orca 터미널 위에 떠서, 직전 대화를 읽어
 "다음에 보낼 만한 프롬프트 후보"를 최대 6개 제안하고, 복사 버튼이나 핫키(⌃⌥⌘)로 바로 입력하게 하는 네이티브 macOS 플로팅 패널.
 

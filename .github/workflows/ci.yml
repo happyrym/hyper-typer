@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build & Test (macOS)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Build
+        run: swift build -v
+
+      # 유닛 테스트(26개)는 claude 없이 mock으로 돈다.
+      # 통합 테스트(IntegrationTests)는 실제 claude CLI 로그인이 필요해 CI에서 자동 스킵된다
+      # (HT_INTEGRATION 미설정). 로컬 검증: HT_INTEGRATION=1 swift test --filter IntegrationTests
+      - name: Unit tests
+        run: swift test
