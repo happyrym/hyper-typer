@@ -65,6 +65,11 @@ final class CandidateGenerator {
                     "claude -p \"$HT_PROMPT\" --model haiku --output-format json --strict-mcp-config --setting-sources '' --system-prompt \"$HT_SYS\""]
                 process.currentDirectoryURL = URL(fileURLWithPath: genDir)
                 var env = ProcessInfo.processInfo.environment
+                // GUI/로그인 항목으로 뜬 앱은 launchd 최소 PATH라 claude(~/.local/bin 등)를 못 찾아
+                // 빈 출력 → 파싱 실패가 난다. 사용자 셸 설정에 의존하지 않도록 흔한 bin 경로를 앞에 붙인다.
+                let home = FileManager.default.homeDirectoryForCurrentUser.path
+                let extra = ["\(home)/.local/bin", "\(home)/.claude/local", "/opt/homebrew/bin", "/usr/local/bin"]
+                env["PATH"] = (extra + [env["PATH"] ?? "/usr/bin:/bin"]).joined(separator: ":")
                 env["HT_PROMPT"] = context
                 env["HT_SYS"] = sys
                 process.environment = env
