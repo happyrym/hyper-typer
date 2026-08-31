@@ -12,11 +12,16 @@ final class HotkeyManager {
     private let signature: OSType = 0x48545950 // 'HTYP'
 
     // (가상 키코드, 대응 숫자). 등록 순서의 인덱스+1을 핫키 ID로 쓰고, ID로 이 표를 되짚어 숫자를 얻는다.
+    // 상단 숫자열과 우측 numpad(Keypad*)를 같은 숫자로 함께 등록 — 어느 쪽을 눌러도 동작한다.
     private let keys: [(code: UInt32, number: Int)] = [
         (UInt32(kVK_ANSI_1), 1), (UInt32(kVK_ANSI_2), 2), (UInt32(kVK_ANSI_3), 3),
         (UInt32(kVK_ANSI_4), 4), (UInt32(kVK_ANSI_5), 5), (UInt32(kVK_ANSI_6), 6),
         (UInt32(kVK_ANSI_0), 0), (UInt32(kVK_ANSI_7), 7),
         (UInt32(kVK_ANSI_8), 8), (UInt32(kVK_ANSI_9), 9),
+        (UInt32(kVK_ANSI_Keypad0), 0), (UInt32(kVK_ANSI_Keypad1), 1), (UInt32(kVK_ANSI_Keypad2), 2),
+        (UInt32(kVK_ANSI_Keypad3), 3), (UInt32(kVK_ANSI_Keypad4), 4), (UInt32(kVK_ANSI_Keypad5), 5),
+        (UInt32(kVK_ANSI_Keypad6), 6), (UInt32(kVK_ANSI_Keypad7), 7), (UInt32(kVK_ANSI_Keypad8), 8),
+        (UInt32(kVK_ANSI_Keypad9), 9),
     ]
 
     init(onPress: @escaping (Int) -> Void) {
