@@ -3,7 +3,7 @@
 [![CI](https://github.com/happyrym/hyper-typer/actions/workflows/ci.yml/badge.svg)](https://github.com/happyrym/hyper-typer/actions/workflows/ci.yml)
 
 **당신의 다음 프롬프트를 예측하는 AI 보조 입력 도구.** Orca 터미널 위에 떠서, 직전 대화를 읽어
-"다음에 보낼 만한 프롬프트 후보"를 최대 6개 제안하고, 복사 버튼이나 핫키(⌃⌥⌘)로 바로 입력하게 하는 네이티브 macOS 플로팅 패널.
+"다음에 보낼 만한 프롬프트 후보"를 최대 6개 제안하고, 복사 버튼이나 핫키(기본 ⌃⌥⌘, 변경 가능)로 바로 입력하게 하는 네이티브 macOS 플로팅 패널.
 
 *An AI assistant that predicts your next prompt. A floating macOS panel over Orca terminals.*
 
@@ -24,7 +24,7 @@
 2. 설치: ~/hyper-typer 없으면 `git clone https://github.com/happyrym/hyper-typer.git ~/hyper-typer`, 있으면 `cd ~/hyper-typer && git pull`
 3. 빌드·실행: `cd ~/hyper-typer && ./build-app.sh && open ~/hyper-typer/HyperTyper.app`
 4. 확인: 메뉴바 ✨ 아이콘 + Orca 위 후보 패널이 뜨는지 (엔터를 치면 앞 3개가 뜨고, Claude 답변 후 뒤 3개가 추가되는지)
-5. (선택) 핫키 주입(⌃⌥⌘1~6)을 쓰려면 시스템 설정 › 손쉬운 사용에서 HyperTyper 켜기 — 메뉴바 ✨ › "손쉬운 사용 권한 열기"로 바로 이동 가능
+5. (선택) 핫키 주입(기본 ⌃⌥⌘1~6, 조합은 설정에서 변경)을 쓰려면 시스템 설정 › 손쉬운 사용에서 HyperTyper 켜기 — 메뉴바 ✨ › "손쉬운 사용 권한 열기"로 바로 이동 가능
 6. (선택) HyperTyper.app 을 /Applications 로 옮기고 로그인 항목에 추가해 자동 실행
 
 완료되면 실행 상태(pid)와 메뉴바 아이콘 확인 결과만 짧게 알려줘.
@@ -45,7 +45,7 @@
 - **Xcode Command Line Tools** (`xcode-select --install`) — `swift` 빌드용
 - **[Orca](https://orca.computer) 터미널** — 이 앱은 Orca의 로컬 상태로 포커스된 터미널·세션을 읽는다 (Orca 전용)
 - **`claude` CLI 로그인 완료** — 후보 생성에 사용. `claude` 명령이 되면 OK (별도 API 키 불필요)
-- **(선택) 손쉬운 사용 권한** — 핫키(⌃⌥⌘) 직접 주입에만 필요. 복사 버튼만 쓰면 없어도 된다.
+- **(선택) 손쉬운 사용 권한** — 핫키(기본 ⌃⌥⌘) 직접 주입에만 필요. 복사 버튼만 쓰면 없어도 된다.
 
 ## 설치 & 실행
 
@@ -73,20 +73,23 @@ open HyperTyper.app     # 실행
    - **핫키** → Orca 입력창에 **바로 주입**(무클릭, 아래 표).
 4. 패널은 드래그로 원하는 위치에 두면 유지된다.
 
-### 단축키 (Hyper = ⌃⌥⌘)
+### 단축키 (기본 조합 = Hyper ⌃⌥⌘, 변경 가능)
 
 | 키 | 동작 |
 |---|---|
-| **⌃⌥⌘1 ~ 6** | 생성된 후보 1~6번을 바로 주입 |
-| **⌃⌥⌘0 · 7 · 8 · 9** | 고정 문구 주입 (기본 0=`deck으로 정리`, 9=`1pager로 정리`, 7·8 빈칸) |
+| **조합 + 1 ~ 6** | 생성된 후보 1~6번을 바로 주입 |
+| **조합 + 0 · 7 · 8 · 9** | 고정 문구 주입 (기본 0=`deck으로 정리`, 9=`1pager로 정리`, 7·8 빈칸) |
 
-> ⌘·⌘⌥+숫자는 Orca가 선점해 겹치므로 세 모디파이어(Hyper)를 쓴다.
+- 숫자는 **상단 숫자열·우측 numpad** 어느 쪽이든 동작한다.
+- **조합은 메뉴바 › 설정…에서 바꾼다.** ⌃⌥⇧⌘ 토글을 켜거나 "직접 지정"으로 원하는 조합을 눌러 지정하면, **모든 숫자 슬롯에 그 조합이 한 번에 적용**된다(숫자만 다름).
+
+> 기본이 세 모디파이어(Hyper)인 이유: ⌘·⌘⌥+숫자는 Orca가 선점해 겹치기 때문. 다른 앱과 충돌하면 설정에서 조합을 바꾸면 된다.
 
 ### 메뉴바 (✨)
 
 - **지금 후보 새로고침** — 강제 재생성
 - **글씨 크기** — 5단계 (선택값 고정 저장)
-- **고정 문구 편집…** — 0·7·8·9 문구 수정 (자동 저장, 빈칸이면 그 키는 무동작)
+- **설정…** — 핫키 기본 조합 변경 + 고정 문구(0·7·8·9) 수정 (자동 저장, 빈칸이면 그 키는 무동작)
 - **손쉬운 사용 권한 열기** — 주입에 필요한 접근성 설정으로 바로 이동
 - **종료**
 
@@ -100,7 +103,7 @@ open HyperTyper.app     # 실행
 | `OrcaState` | `orca-data.json`(activeTabId+activeLeafId) + `agent-hooks/last-status.json` → **포커스된 pane의 세션**(cwd·상태·직전 프롬프트·답변) |
 | `CandidateGenerator` | `claude -p --model haiku` (print 모드)로 후보 N개 생성(count 지정). 격리된 scratch cwd에서 실행해 자기 트리거 방지 |
 | `CandidateStore` | **pane별 2-스트림 캐시**(early=프롬프트만·즉시 3 / answer=답변 기반 3) — 전환 무지연, 각 스트림 독립 병렬 생성, 완료 역전·중복 가드. 복사 처리 |
-| `HotkeyManager` | Carbon `RegisterEventHotKey`로 **⌃⌥⌘1~6 전역 핫키** 등록 (핫키 감지엔 권한 불필요) |
+| `HotkeyManager` / `HotkeySettings` | Carbon `RegisterEventHotKey`로 **조합+숫자(상단열·numpad) 전역 핫키** 등록 (감지엔 권한 불필요). 조합은 `HotkeySettings`가 관리·저장하고, 바뀌면 전 슬롯을 재등록 |
 | `TextInjector` | 선택 후보를 `CGEvent` 유니코드로 **Orca 입력창에 직접 주입** (접근성 권한 사용, 클립보드 우회) |
 | `TranscriptWatcher` | FSEvents로 Orca 상태 변경 감지 (포커스 전환·턴 이벤트) |
 | `FloatingPanel` / `PanelView` / `StatusBarController` | non-activating 오버레이 패널 · SwiftUI · 메뉴바 |

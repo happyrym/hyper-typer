@@ -6,7 +6,7 @@ final class StatusBarController: NSObject {
     private let statusItem: NSStatusItem
     private let onRefresh: () -> Void
     private let onFontSize: (CGFloat) -> Void
-    private let onEditPins: () -> Void
+    private let onOpenPreferences: () -> Void
     private var fontItems: [NSMenuItem] = []
     private var currentSize: CGFloat
 
@@ -16,11 +16,11 @@ final class StatusBarController: NSObject {
     ]
 
     init(currentSize: CGFloat, onRefresh: @escaping () -> Void, onFontSize: @escaping (CGFloat) -> Void,
-         onEditPins: @escaping () -> Void) {
+         onOpenPreferences: @escaping () -> Void) {
         self.currentSize = currentSize
         self.onRefresh = onRefresh
         self.onFontSize = onFontSize
-        self.onEditPins = onEditPins
+        self.onOpenPreferences = onOpenPreferences
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -52,7 +52,7 @@ final class StatusBarController: NSObject {
         sizeParent.submenu = sizeSubmenu
         menu.addItem(sizeParent)
 
-        menu.addItem(item(title: "고정 문구 편집…", key: "", action: #selector(editPins)))
+        menu.addItem(item(title: "설정…", key: ",", action: #selector(openPreferences)))
         menu.addItem(item(title: "손쉬운 사용 권한 열기", key: "", action: #selector(openAccessibility)))
 
         menu.addItem(.separator())
@@ -77,7 +77,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func refresh() { onRefresh() }
-    @objc private func editPins() { onEditPins() }
+    @objc private func openPreferences() { onOpenPreferences() }
     @objc private func openAccessibility() {
         // 재빌드 후 접근성 권한 재승인을 빠르게 하도록 손쉬운 사용 창을 바로 연다.
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }

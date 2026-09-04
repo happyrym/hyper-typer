@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkeys: HotkeyManager!
     private let store = CandidateStore()
     private let pins = PinStore()
+    private let hotkeySettings = HotkeySettings()
     private var prefs: PreferencesWindowController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -23,7 +24,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if savedSize >= 11 { store.fontSize = CGFloat(savedSize) }
 
         // 메뉴바 아이콘(실행 표시 + 종료/새로고침/글씨 크기). 크기 변경 시 UserDefaults에 저장.
-        prefs = PreferencesWindowController(pins: pins)
+        // 조합 녹화 중에는 현재 핫키가 입력을 가로채므로 onRecordStart/onRecordEnd로 임시 해제·복구한다.
+        prefs = PreferencesWindowController(
+            pins: pins,
+            hotkeys: hotkeySettings,
+            onRecordStart: { [weak self] in self?.hotkeys.suspend() },
+            onRecordEnd: { [weak self] in self?.hotkeys.resume() }
+        )
         statusBar = StatusBarController(
             currentSize: store.fontSize,
             onRefresh: { [weak self] in self?.store.refreshFromTranscript() },
@@ -31,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.store.fontSize = size
                 UserDefaults.standard.set(Double(size), forKey: "hyper.fontSize")
             },
-            onEditPins: { [weak self] in self?.prefs.show() }
+            onOpenPreferences: { [weak self] in self?.prefs.show() }
         )
 
         // Orca 창을 추적해 패널을 그 위에 앵커링.
@@ -57,7 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         watcher2.start()
 
-        // ⌃⌥⌘1~5 로 해당 슬롯 후보를 Orca에 직접 주입(클립보드 우회). 주입엔 접근성 권한 필요.
+        // 조합+숫자 핫키로 해당 슬롯(1~6 후보 · 0·7·8·9 고정문구)을 Orca에 직접 주입(클립보드 우회). 주입엔 접근성 권한 필요.
         TextInjector.ensureTrusted(prompt: true)
         hotkeys = HotkeyManager { [weak self] number in
             MainActor.assumeIsolated {
@@ -69,7 +76,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 TextInjector.inject(text)
             }
         }
-        hotkeys.register()
+        hotkeys.register(mods: hotkeySettings.carbonMask)
+        // 설정에서 조합이 바뀌면 전 슬롯을 새 조합으로 재등록(핸들러는 유지 → 재승인 불필요).
+        hotkeySettings.onChange = { [weak self] in
+            guard let self else { return }
+            self.hotkeys.setModifiers(self.hotkeySettings.carbonMask)
+        }
 
         // 첫 로드: 직전 assistant 턴으로 후보 생성.
         store.refreshFromTranscript()

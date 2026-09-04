@@ -1,7 +1,8 @@
 import Combine
 import Foundation
 
-/// 핫키(⌃⌥⌘ 0·7·8·9)로 바로 주입하는 고정 문구. 환경설정 창에서 편집하고 UserDefaults에 저장한다.
+/// 핫키(조합 + 0·7·8·9)로 바로 주입하는 고정 문구. 조합은 HotkeySettings가 정한다.
+/// 환경설정 창에서 편집하고 UserDefaults에 저장한다.
 /// 0·9는 기본값이 있고, 7·8은 기본 빈칸(비우면 해당 키는 동작하지 않음).
 @MainActor
 final class PinStore: ObservableObject {
